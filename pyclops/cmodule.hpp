@@ -1,0 +1,38 @@
+#ifndef _PYCLOPS_CMODULE_HPP
+#define _PYCLOPS_CMODULE_HPP
+
+#include <string>
+#include <vector>
+#include <functional>
+
+#include "py_object.hpp"
+#include "py_tuple.hpp"
+#include "py_dict.hpp"
+
+namespace pyclops {
+#if 0
+}  // emacs pacifier
+#endif
+
+
+struct cmodule {
+public:
+    cmodule(const std::string &name, const std::string &docstring="");
+
+    void add_function(const std::string &func_name, const std::string &docstring, std::function<py_object(py_tuple,py_dict)> func);
+    void add_function(const std::string &func_name, std::function<py_object(py_tuple,py_dict)> func);   // empty docstring
+
+    // Registers module with the python interpreter (by calling Py_InitModule3())
+    void finalize();
+
+protected:
+    const std::string module_name;
+    const std::string module_docstring;
+    std::vector<PyMethodDef> module_methods;
+    bool finalized = false;
+};
+
+
+}  // namespace pyclops
+
+#endif  // _PYCLOPS_CMODULE_HPP

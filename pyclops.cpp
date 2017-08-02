@@ -1,7 +1,7 @@
 // This source file is compiled into pyclops.so (the python extension module).
 // It is not compiled into libpyclops.so (the C++ library).
 
-#include "pyclops.hpp"
+#include "pyclops/internals.hpp"
 
 using namespace std;
 using namespace pyclops;

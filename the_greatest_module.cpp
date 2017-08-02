@@ -84,6 +84,13 @@ static py_object make_array(py_tuple dims)
 }
 
 
+struct X {
+    ssize_t x;    
+    X(ssize_t x_) : x(x_) { }
+    ssize_t get() { return x; }
+};
+
+
 PyMODINIT_FUNC initthe_greatest_module(void)
 {
     import_array();
@@ -102,6 +109,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     m.add_function("make_array",
 		   toy_wrap(std::function<py_object(py_tuple)> (make_array)));
+
+    extension_type<X> X_type("X", "The awesome X class");
 
     m.finalize();
 }

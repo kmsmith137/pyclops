@@ -14,6 +14,7 @@ INCFILES = pyclops.hpp \
   pyclops/py_object.hpp \
   pyclops/py_tuple.hpp \
   pyclops/py_dict.hpp \
+  pyclops/py_array.hpp \
   pyclops/cmodule.hpp \
   pyclops/converters.hpp \
   pyclops/functional_wrappers.hpp \

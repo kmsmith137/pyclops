@@ -9,7 +9,7 @@ namespace pyclops {
 #endif
 
 
-static constexpr int table_capacity = 10;
+static constexpr int table_capacity = 50;
 
 
 struct kwargs_entry {
@@ -21,8 +21,8 @@ static vector<kwargs_entry> kwargs_table(table_capacity);
 static int kwargs_table_size = 0;
 
 
-template<int N>
-static PyObject *f_kwargs(PyObject *self, PyObject *args, PyObject *kwds)
+// non-inline
+PyObject *_f_kwargs(PyObject *self, PyObject *args, PyObject *kwds, int N)
 {
     try {
 	py_tuple a = py_tuple::borrowed_reference(args);
@@ -40,6 +40,12 @@ static PyObject *f_kwargs(PyObject *self, PyObject *args, PyObject *kwds)
 	PyErr_SetString(PyExc_RuntimeError, "C++ exception was thrown, but not a subclass of std::exception");
 	return NULL;
     }
+}
+
+template<int N>
+static PyObject *f_kwargs(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    return _f_kwargs(self, args, kwds, N);
 }
 
 

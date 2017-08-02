@@ -18,18 +18,12 @@ cmodule::cmodule(const string &name, const string &docstring) :
 }
 
 
-void cmodule::add_function(const string &func_name, const string &docstring, std::function<py_object(py_tuple,py_dict)> func)
+void cmodule::add_function(const string &func_name, const string &func_docstring, std::function<py_object(py_tuple,py_dict)> func)
 {
     if (finalized)
 	throw runtime_error("pyclops: cmodule::add_function() called after cmodule::finalize()");
 
-    PyMethodDef m;
-    m.ml_name = strdup(func_name.c_str());
-    m.ml_meth = make_kwargs_cfunction(func);
-    m.ml_flags = METH_VARARGS | METH_KEYWORDS;
-    m.ml_doc = strdup(docstring.c_str());
-
-    this->module_methods.push_back(m);
+    this->module_methods.push_back({ func_name, func_docstring, func });
 }
 
 
@@ -44,10 +38,22 @@ void cmodule::finalize()
     if (finalized)
 	throw runtime_error("pyclops: double call to cmodule::finalize()");
 
-    this->module_methods.push_back({ NULL, NULL, 0, NULL });
+    // FIXME(?): small memory leaks below.
+
+    int n = module_methods.size();
+
+    PyMethodDef *mdefs = (PyMethodDef *) malloc((n+1) * sizeof(PyMethodDef));
+    memset(mdefs, 0, (n+1) * sizeof(PyMethodDef));
+
+    for (int i = 0; i < n; i++) {
+	mdefs[i].ml_name = strdup(module_methods[i].func_name.c_str());
+	mdefs[i].ml_meth = make_kwargs_cfunction(module_methods[i].func);
+	mdefs[i].ml_flags = METH_VARARGS | METH_KEYWORDS;
+	mdefs[i].ml_doc = strdup(module_methods[i].func_docstring.c_str());
+    }
     
     PyObject *m = Py_InitModule3(strdup(module_name.c_str()),
-				 &module_methods[0],
+				 mdefs,
 				 strdup(module_docstring.c_str()));
 
     if (!m)

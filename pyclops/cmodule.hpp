@@ -19,7 +19,7 @@ struct cmodule {
 public:
     cmodule(const std::string &name, const std::string &docstring="");
 
-    void add_function(const std::string &func_name, const std::string &docstring, std::function<py_object(py_tuple,py_dict)> func);
+    void add_function(const std::string &func_name, const std::string &func_docstring, std::function<py_object(py_tuple,py_dict)> func);
     void add_function(const std::string &func_name, std::function<py_object(py_tuple,py_dict)> func);   // empty docstring
 
     // Registers module with the python interpreter (by calling Py_InitModule3())
@@ -28,7 +28,14 @@ public:
 protected:
     const std::string module_name;
     const std::string module_docstring;
-    std::vector<PyMethodDef> module_methods;
+
+    struct method_table_entry {
+	std::string func_name;
+	std::string func_docstring;
+	std::function<py_object(py_tuple,py_dict)> func;
+    };
+
+    std::vector<method_table_entry> module_methods;
     bool finalized = false;
 };
 

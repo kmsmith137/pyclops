@@ -25,7 +25,14 @@ struct py_array : public py_object {
     npy_intp itemsize() const  { return PyArray_ITEMSIZE(aptr()); }
     void *data() const         { return PyArray_DATA(aptr()); }
     int npy_type() const       { return PyArray_TYPE(aptr()); }
-    py_object base() const     { return py_object::borrowed_reference(PyArray_BASE(aptr())); }
+
+    py_object _base() const
+    {
+	PyObject *b = PyArray_BASE(aptr());
+	if (b)
+	    return py_object::borrowed_reference(b);
+	return (*this);
+    }
 
     inline void _check(const char *loc=NULL)
     {

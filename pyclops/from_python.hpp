@@ -112,7 +112,7 @@ struct from_python<mcpp_arrays::rs_array<T>> {
 	// and T is a non-const type?
 	
 	auto dtype = mcpp_typeid_from_npy_type(a.npy_type(), where);
-	auto reaper = make_mcpp_reaper_from_pybase(a.base());
+	auto reaper = make_mcpp_reaper_from_pybase(a._base());
 	
 	// Note: rs_array constructor will throw an exception if 'dtype' doesn't match T.
 	// Note: this is an "incomplete" constructor, still need to set shape/strides and call _finalize_shape_and_strides().

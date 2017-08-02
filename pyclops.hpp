@@ -5,7 +5,7 @@
 #error "This source file needs to be compiled with -std=c++11"
 #endif
 
-#include <rs_array.hpp>
+#include <mcpp_arrays.hpp>
 
 #include "pyclops/py_object.hpp"
 #include "pyclops/py_tuple.hpp"

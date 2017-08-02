@@ -37,7 +37,7 @@ struct _ntuple<A,Ap...> {
     _ntuple<Ap...> tail;
 
     _ntuple(const py_tuple &t, ssize_t pos=0) :
-	head(from_python<A>(t.get_item(pos))),
+	head(from_python<A>::convert(t.get_item(pos))),
 	tail(t, pos+1)
     { }
 

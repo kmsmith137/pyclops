@@ -1,8 +1,10 @@
 #include <sstream>
 #include <iostream>
+#include <mcpp_arrays.hpp>
 #include "pyclops.hpp"
 
 using namespace std;
+using namespace mcpp_arrays;
 using namespace pyclops;
 
 
@@ -40,6 +42,25 @@ static string describe_array(py_array a)
 }
 
 
+static double _sum(int ndim, const ssize_t *shape, const ssize_t *strides, const double *data)
+{
+    if (ndim == 0)
+	return data[0];
+
+    double ret = 0.0;
+    for (int i = 0; i < shape[0]; i++)
+	ret += _sum(ndim-1, shape+1, strides+1, data + i*strides[0]);
+
+    return ret;
+}
+
+
+static double sum(rs_array<double> a)
+{
+    return _sum(a.ndim, a.shape, a.strides, a.data);
+}
+
+
 PyMODINIT_FUNC initthe_greatest_module(void)
 {
     import_array();
@@ -52,6 +73,9 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     m.add_function("describe_array",
 		   toy_wrap(std::function<string(py_array)> (describe_array)));
+
+    m.add_function("sum",
+		   toy_wrap(std::function<double(rs_array<double>)> (sum)));
 
     m.finalize();
 }

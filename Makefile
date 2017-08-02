@@ -60,7 +60,7 @@ install: libpyclops.so pyclops.so
 	cp -f pyclops.so $(PYDIR)/
 
 uninstall:
-	rm -f $(INCDIR)/pyclops.hpp $(INCDIR)/pyclops/ $(LIBDIR)/libpyclops.so $(PYDIR)/pyclops.so
+	rm -rf $(INCDIR)/pyclops.hpp $(INCDIR)/pyclops/ $(LIBDIR)/libpyclops.so $(PYDIR)/pyclops.so
 
 clean:
 	rm -f *~ *.o *.so *.pyc pyclops/*~

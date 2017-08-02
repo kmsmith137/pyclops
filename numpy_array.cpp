@@ -192,6 +192,22 @@ static PyTypeObject mcpp_pybase_type {
 };
 
 
+static bool _reaper_type_added = false;
+
+void _add_reaper_type(PyObject *module)
+{
+    // FIXME: what action should be taken if _add_reaper_type() is called twice?
+    Py_INCREF(&mcpp_pybase_type);
+    PyModule_AddObject(module, "mcpp_pybase", (PyObject *)&mcpp_pybase_type);
+    _reaper_type_added = true;
+}
+
+bool _reaper_type_ready()
+{
+    return (PyType_Ready(&mcpp_pybase_type) >= 0);
+}
+
+
 // -------------------------------------------------------------------------------------------------
 //
 // Externally-visible helpers for garbage collection.
@@ -200,6 +216,10 @@ static PyTypeObject mcpp_pybase_type {
 // Make a C++ reaper which wraps python object 'x'.
 shared_ptr<mcpp_arrays::mcpp_reaper> make_mcpp_reaper_from_pybase(const py_object &x)
 {
+    // FIXME improve!
+    if (!_reaper_type_added)
+	throw runtime_error("pyclops: currently you need to 'import pyclops' by hand");
+
     // Typical case: construct new reaper.
     if (!PyObject_IsInstance(x.ptr, (PyObject *) &mcpp_pybase_type))
 	return make_shared<np_reaper> (x);
@@ -224,6 +244,10 @@ py_object make_pybase_from_mcpp_reaper(const shared_ptr<mcpp_arrays::mcpp_reaper
 {
     if (!reaper)
 	throw runtime_error("pyclops internal error: empty 'reaper' pointer passed to make_pybase_from_mcpp_reaper()");
+
+    // FIXME improve!
+    if (!_reaper_type_added)
+	throw runtime_error("pyclops: currently you need to 'import pyclops' by hand");
 
     // Special case: 'reaper' is a C++ reaper which wraps a pybase.
     // In this case, rather than creating a new pybase, we return the old one.

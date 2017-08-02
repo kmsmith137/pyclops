@@ -43,19 +43,24 @@ ifndef LIBDIR
 $(error Fatal: Makefile.local must define LIBDIR variable)
 endif
 
+ifndef PYDIR
+$(error Fatal: Makefile.local must define PYDIR variable)
+endif
+
 
 ####################################################################################################
 
 
-all: libpyclops.so the_greatest_module.so
+all: libpyclops.so pyclops.so the_greatest_module.so
 
-install: libpyclops.so
-	mkdir -p $(INCDIR)/pyclops $(LIBDIR)/
+install: libpyclops.so pyclops.so
+	mkdir -p $(INCDIR)/pyclops $(LIBDIR)/ $(PYDIR)/
 	cp -f $(INCFILES) $(INCDIR)/
 	cp -f libpyclops.so $(LIBDIR)/
+	cp -f pyclops.so $(PYDIR)/
 
 uninstall:
-	rm -f $(INCDIR)/pyclops.hpp $(INCDIR)/pyclops/ $(LIBDIR)/libpyclops.so
+	rm -f $(INCDIR)/pyclops.hpp $(INCDIR)/pyclops/ $(LIBDIR)/libpyclops.so $(PYDIR)/pyclops.so
 
 clean:
 	rm -f *~ *.o *.so *.pyc pyclops/*~
@@ -69,6 +74,9 @@ clean:
 
 libpyclops.so: $(OFILES)
 	$(CPP) $(CPP_LFLAGS) -Wno-strict-aliasing -DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION -shared -o $@ $^ $(LIBS_PYMODULE)
+
+pyclops.so: pyclops.o libpyclops.so
+	$(CPP) $(CPP_LFLAGS) -Wno-strict-aliasing -DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION -shared -o $@ $^ -lpyclops $(LIBS_PYMODULE)
 
 the_greatest_module.so: the_greatest_module.cpp libpyclops.so
 	$(CPP) $(CPP_LFLAGS) -L. -Wno-strict-aliasing -DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION -shared -o $@ $< -lpyclops $(LIBS_PYMODULE)

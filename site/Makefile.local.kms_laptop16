@@ -4,6 +4,9 @@ LIBDIR=$(HOME)/lib
 # Directory where C++ header files will be installed
 INCDIR=$(HOME)/include
 
+# Directory where Python modules will be installed
+PYDIR=$(HOME)/lib/python2.7/site-packages
+
 # Read-only location of python header files
 # Hint for PYTHON_INCDIR: import distutils.sysconfig; distutils.sysconfig.get_python_inc()
 PYTHON_INCDIR=/usr/include/python2.7

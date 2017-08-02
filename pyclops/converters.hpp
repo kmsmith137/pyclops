@@ -1,6 +1,7 @@
 #ifndef _PYCLOPS_FROM_PYTHON_HPP
 #define _PYCLOPS_FROM_PYTHON_HPP
 
+#include <vector>
 #include <mcpp_arrays.hpp>
 
 #include "py_object.hpp"

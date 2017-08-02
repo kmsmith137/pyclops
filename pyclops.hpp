@@ -12,8 +12,8 @@
 #include "pyclops/py_dict.hpp"
 #include "pyclops/py_array.hpp"
 
-#include "pyclops/cmodule.hpp"
 #include "pyclops/converters.hpp"
+#include "pyclops/extension_module.hpp"
 #include "pyclops/functional_wrappers.hpp"
 
 #endif  // _PYCLOPS_HPP

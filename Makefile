@@ -15,13 +15,13 @@ INCFILES = pyclops.hpp \
   pyclops/py_tuple.hpp \
   pyclops/py_dict.hpp \
   pyclops/py_array.hpp \
-  pyclops/cmodule.hpp \
   pyclops/converters.hpp \
+  pyclops/extension_module.hpp \
   pyclops/functional_wrappers.hpp \
   pyclops/internals.hpp
 
 OFILES = cfunction_table.o \
-  cmodule.o \
+  extension_module.o \
   numpy_array.o \
   exceptions.o
 

@@ -12,8 +12,8 @@
 #include "py_tuple.hpp"
 #include "py_dict.hpp"
 
-#include "cmodule.hpp"
 #include "converters.hpp"
+#include "extension_module.hpp"
 
 namespace pyclops {
 #if 0

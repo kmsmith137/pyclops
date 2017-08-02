@@ -34,23 +34,26 @@ void py_array::_throw(const char *where)
 // -------------------------------------------------------------------------------------------------
 
 
-// FIXME: currently ignores the 'where' argument!
-pyerr_occurred::pyerr_occurred(const char *where)
+pyerr_occurred::pyerr_occurred(const char *where_)
 {
+    this->where = where_ ? where_ : "pyclops internal error";
+
     if (!PyErr_Occurred())
-	throw std::runtime_error("pyclops: internal error: pyerr_occurred constructed, but PyErr_Occurred() returned false!");
+	throw std::runtime_error(std::string(where) + ": pyerr_occurred constructor called, but PyErr_Occurred() returned false!");
 }
 
 // virtual
 char const *pyerr_occurred::what() const noexcept
 {
     if (!PyErr_Occurred())
-	throw std::runtime_error("pyclops: internal error: pyerr_occurred constructor called, but PyErr_Occurred() returned false!");
+	throw std::runtime_error(std::string(where) + ": pyerr_occurred::what() called, but PyErr_Occurred() returned false!");
 
-    // TODO: get string corresponding to python exception.
+    // FIXME: get string corresponding to python exception.
     throw std::runtime_error("An exception was thrown in the python interpreter, and its exception text must remain shrouded in mystery for now");
 }
 
+
+// This is called whenever we want to "swallow" a C++ exception, but propagate it into the python error indicator.
 void set_python_error(const std::exception &e) noexcept
 {
     if (PyErr_Occurred())

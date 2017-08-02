@@ -1,5 +1,5 @@
-#ifndef _PYCLOPS_CMODULE_HPP
-#define _PYCLOPS_CMODULE_HPP
+#ifndef _PYCLOPS_EXTENSION_MODULE_HPP
+#define _PYCLOPS_EXTENSION_MODULE_HPP
 
 #include <string>
 #include <vector>
@@ -42,4 +42,4 @@ protected:
 
 }  // namespace pyclops
 
-#endif  // _PYCLOPS_CMODULE_HPP
+#endif  // _PYCLOPS_EXTENSION_MODULE_HPP

@@ -1,6 +1,8 @@
 #ifndef _PYCLOPS_EXTENSION_TYPE_HPP
 #define _PYCLOPS_EXTENSION_TYPE_HPP
 
+#include "internals.hpp"
+
 namespace pyclops {
 #if 0
 }  // emacs pacifier
@@ -15,20 +17,20 @@ struct class_wrapper {
 
 
 template<typename T>
-struct extension_type {
+class extension_type {
 public:
     extension_type(const std::string &name, const std::string &docstring="");
 
-    void add_constructor(std::function<T* (py_tuple,py_dict)> f);
+    inline void add_constructor(std::function<T* (py_tuple,py_dict)> f);
 
-    void add_method(const std::string &name,
-		    const std::string &docstring,
-		    std::function<py_object(T *,py_tuple,py_dict)> f);
+    inline void add_method(const std::string &name,
+			   const std::string &docstring,
+			   std::function<py_object(T *,py_tuple,py_dict)> f);
 
-    void finalize();
+    inline void finalize();
 
-    T *from_python(const py_object &obj, const char *where=nullptr);
-    py_object to_python(const T &x);
+    inline T *from_python(const py_object &obj, const char *where=nullptr);
+    inline py_object to_python(const T &x);
 
 protected:
     PyTypeObject *tobj = nullptr;
@@ -59,6 +61,31 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
     tobj->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
     tobj->tp_basicsize = sizeof(class_wrapper<T>);
     tobj->tp_dealloc = extension_type<T>::tp_dealloc;
+}
+
+
+template<typename T>
+inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_dict)> f)
+{
+    if (tobj->tp_new)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::add_constructor()");
+
+    auto g = [f](PyTypeObject *type, py_tuple args, py_dict kwds) -> PyObject* {
+	T *tp = f(args, kwds);
+	if (!tp)
+	    throw std::runtime_error(std::string(type->tp_name) + ": constructor returned null pointer?!");
+
+	PyObject *ret = type->tp_alloc(type, 0);
+	if (!ret)
+	    throw pyerr_occurred();
+
+	class_wrapper<T> *wret = reinterpret_cast<class_wrapper<T> *> (ret);
+	wret->ptr = tp;
+	return ret;
+    };
+
+    // Convert std::function to cfunction.
+    tobj->tp_new = make_kwargs_tp_new(g);
 }
 
 

@@ -91,6 +91,9 @@ struct X {
 };
 
 
+static extension_type<X> X_type("X", "The awesome X class");
+
+
 PyMODINIT_FUNC initthe_greatest_module(void)
 {
     import_array();
@@ -110,7 +113,14 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("make_array",
 		   toy_wrap(std::function<py_object(py_tuple)> (make_array)));
 
-    extension_type<X> X_type("X", "The awesome X class");
+    auto X_constructor = [](py_tuple args, py_dict kwds) -> X* {
+	if ((args.size() != 1) || (kwds.size() != 0))
+	    throw runtime_error("bad call to X.__init__()");
+	ssize_t x = converter<ssize_t>::from_python(args.get_item(0), "X.__init__()");
+	return new X(x);
+    };
+
+    X_type.add_constructor(X_constructor);
 
     m.finalize();
 }

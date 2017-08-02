@@ -24,9 +24,15 @@ namespace pyclops {
 // This is called whenever we want to "swallow" a C++ exception, but propagate it into the python error indicator.
 extern void set_python_error(const std::exception &e) noexcept;
 
-// Currently throws an exception if cfunction table is full, but returning NULL would probably be better.
+// These functions convert a C++ std::function to a C-style function pointer.
+// The return types are typedef's defined in Python.h.
+//
+// There is currently a hardcoded limit on the number of functions which can be converted,
+// but this should be fixable with some hackery.  
+
 extern PyCFunction make_kwargs_cfunction(std::function<py_object(py_tuple,py_dict)> f);
 extern PyCFunction make_kwargs_cmethod(std::function<py_object(py_object,py_tuple,py_dict)> f);
+extern newfunc make_kwargs_tp_new(std::function<PyObject* (PyTypeObject *, py_tuple, py_dict)> f);
 
 // Used to manage addition of the 'pyclops.mcpp_pybase' class to the pyclops.so extension module.
 extern void _add_reaper_type(PyObject *module);

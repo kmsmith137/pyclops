@@ -19,6 +19,7 @@ namespace pyclops {
 //
 // struct converter<T> {
 //    static T from_python(const py_object &x, const char *where=nullptr);
+//    static py_object to_python(const T & x);
 // };
 //
 // FIXME: this API can probably be improved!
@@ -38,18 +39,22 @@ template<typename T> struct converter;
 
 template<> struct converter<py_object> {
     static py_object from_python(const py_object &x, const char *where=nullptr) { return x; }
+    static py_object to_python(const py_object &x) { return x; }
 };
 
 template<> struct converter<py_tuple> {
     static py_tuple from_python(const py_object &x, const char *where=nullptr) { return py_tuple(x,where); }
+    static py_object to_python(const py_tuple &x) { return x; }
 };
 
 template<> struct converter<py_dict> {
     static py_dict from_python(const py_object &x, const char *where=nullptr) { return py_dict(x,where); }
+    static py_object to_python(const py_dict &x) { return x; }
 };
 
 template<> struct converter<py_array> {
     static py_array from_python(const py_object &x, const char *where=nullptr) { return py_array(x,where); }
+    static py_object to_python(const py_array &x) { return x; }
 };
 
 
@@ -66,6 +71,11 @@ template<> struct converter<ssize_t> {
 	    throw pyerr_occurred(where);
 	return n;
     }
+
+    static py_object to_python(const ssize_t &x) 
+    {    
+	return py_object::new_reference(PyInt_FromSsize_t(x));
+    }
 };
 
 
@@ -77,6 +87,11 @@ template<> struct converter<double> {
 	    throw pyerr_occurred(where);
 	return ret;
     }
+
+    static py_object to_python(const double &x)
+    {
+	return py_object::new_reference(PyFloat_FromDouble(x));
+    }
 };
 
 
@@ -87,6 +102,11 @@ template<> struct converter<std::string> {
 	if (!ret)
 	    throw pyerr_occurred(where);
 	return ret;
+    }
+
+    static py_object to_python(const std::string &x)
+    {
+	return py_object::new_reference(PyString_FromString(x.c_str()));
     }
 };
 

@@ -4,7 +4,6 @@
 #include "py_object.hpp"
 #include "py_tuple.hpp"
 #include "py_dict.hpp"
-#include "to_python.hpp"
 #include "converters.hpp"
 
 namespace pyclops {
@@ -62,7 +61,7 @@ inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<R(Args.
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("nein!");
 	    _ntuple<Args...> cargs(args);
-	    return to_python<R> (cargs.template _pcall<R> (f));
+	    return converter<R>::to_python(cargs.template _pcall<R> (f));
 	};
 }
 

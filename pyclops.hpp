@@ -13,7 +13,6 @@
 #include "pyclops/py_array.hpp"
 
 #include "pyclops/cmodule.hpp"
-#include "pyclops/to_python.hpp"
 #include "pyclops/converters.hpp"
 #include "pyclops/functional_wrappers.hpp"
 

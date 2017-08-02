@@ -155,6 +155,35 @@ struct converter<mcpp_arrays::rs_array<T>> {
 	
 	return ret;
     }
+
+    // FIXME: here is one case that could be handled better by our rs_array converters.
+    // Suppose we python-wrap a function which accepts an rs_array, and returns it:
+    //
+    //   rs_array<T> f(rs_array<T> x) { return x; }
+    //
+    // The from_python converter will be called, followed by the to_python converter.
+    // This has the effect of returning a new numpy array which points to the same data
+    // as the input array.  It would be better to return a reference to the input array!
+
+    static py_object to_python(const mcpp_arrays::rs_array<T> &x)
+    {
+	py_object pybase = make_pybase_from_mcpp_reaper(x.reaper);
+	int npy_type = npy_type_from_mcpp_typeid(x.dtype, "rs_array to-python converter");
+
+	std::vector<npy_intp> v(2 * x.ndim);
+	npy_intp *shape = &v[0];
+	npy_intp *strides = &v[x.ndim];
+
+	for (int i = 0; i < x.ndim; i++) {
+	    shape[i] = x.shape[i];
+	    strides[i] = x.strides[i] * x.itemsize;    // Note factor of 'itemsize' here
+	}
+
+	// FIXME: figure out with 100% certainty which flags we should set here.
+	int flags = NPY_ARRAY_NOTSWAPPED;
+
+	return py_array::from_pointer(x.ndim, shape, strides, x.itemsize, x.data, npy_type, flags, pybase);
+    }
 };
 
 

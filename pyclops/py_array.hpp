@@ -26,6 +26,10 @@ struct py_array : public py_object {
     inline void *data() const         { return PyArray_DATA(aptr()); }
     inline int npy_type() const       { return PyArray_TYPE(aptr()); }
 
+    static inline py_array from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides,
+					int itemsize, void *data, int npy_type, int flags, 
+					const py_object &base);
+
     // Reminder: the numpy flags are as follows:
     //
     //   NPY_ARRAY_C_CONTIGUOUS
@@ -54,7 +58,10 @@ struct py_array : public py_object {
     //   In most cases, 'base' is the object which owns the memory the array is pointing at.  
     //   If the NPY_ARRAY_UPDATEIFCOPY flag is set, it has a different  meaning, namely 'base'
     //   is the array into which the current array will be copied upon destruction. 
+    //
     //   This overloading of 'base' is likely to change in a future version of NumPy. (!!)
+    //
+    //   Once the base is set, it may not be changed to another value.
 
     py_object _base() const
     {
@@ -76,7 +83,7 @@ struct py_array : public py_object {
 
 extern const char *npy_typestr(int npy_type);
 
-extern int npy_type_from_mccp_typeid(mcpp_arrays::mcpp_typeid mcpp_type, const char *where=nullptr);
+extern int npy_type_from_mcpp_typeid(mcpp_arrays::mcpp_typeid mcpp_type, const char *where=nullptr);
 
 extern mcpp_arrays::mcpp_typeid mcpp_typeid_from_npy_type(int npy_type, const char *where=nullptr);
 
@@ -118,6 +125,26 @@ inline py_array &py_array::operator=(py_object &&x)
     x.ptr = NULL;
     this->_check();
     return *this;
+}
+
+
+// static constructor-like member function
+inline py_array py_array::from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides,
+				       int itemsize, void *data, int npy_type, int flags, const py_object &base)
+{
+    PyObject *p = PyArray_New(&PyArray_Type, ndim, const_cast<npy_intp *> (shape), npy_type,
+			      const_cast<npy_intp *> (strides), data, itemsize, flags, NULL);
+
+    py_array ret = py_array::new_reference(p);
+
+    int err = PyArray_SetBaseObject(ret.aptr(), base.ptr);
+    if (err < 0)
+	throw pyerr_occurred("pyclops::py_array::from_pointer");
+
+    // PyArray_SetBaseObject() steals the 'base' reference, so we need to balance the books.
+    Py_INCREF(base.ptr);
+
+    return ret;
 }
 
 

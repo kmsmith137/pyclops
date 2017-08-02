@@ -16,7 +16,7 @@ INCFILES = pyclops.hpp \
   pyclops/py_dict.hpp \
   pyclops/cmodule.hpp \
   pyclops/to_python.hpp \
-  pyclops/from_python.hpp \
+  pyclops/converters.hpp \
   pyclops/functional_wrappers.hpp \
   pyclops/internals.hpp
 

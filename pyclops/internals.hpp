@@ -13,7 +13,7 @@
 #include "py_dict.hpp"
 
 #include "cmodule.hpp"
-#include "from_python.hpp"
+#include "converters.hpp"
 
 namespace pyclops {
 #if 0

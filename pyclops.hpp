@@ -14,7 +14,7 @@
 
 #include "pyclops/cmodule.hpp"
 #include "pyclops/to_python.hpp"
-#include "pyclops/from_python.hpp"
+#include "pyclops/converters.hpp"
 #include "pyclops/functional_wrappers.hpp"
 
 #endif  // _PYCLOPS_HPP

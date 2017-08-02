@@ -5,7 +5,7 @@
 #include "py_tuple.hpp"
 #include "py_dict.hpp"
 #include "to_python.hpp"
-#include "from_python.hpp"
+#include "converters.hpp"
 
 namespace pyclops {
 #if 0

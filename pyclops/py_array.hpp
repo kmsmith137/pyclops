@@ -2,7 +2,7 @@
 #define _PYCLOPS_ARRAY_HPP
 
 #include "py_object.hpp"
-#include <mccp_arrays.hpp>
+#include <mcpp_arrays.hpp>
 
 
 namespace pyclops {
@@ -39,20 +39,13 @@ struct py_array : public py_object {
 
 extern const char *npy_typestr(int npy_type);
 
-extern int npy_type_from_mccp_typeid(mcpp_arrays::typeid mcpp_type);
+extern int npy_type_from_mccp_typeid(mcpp_arrays::mcpp_typeid mcpp_type, const char *where=nullptr);
 
-extern mcpp_arrays::mcpp_typeid mcpp_typeid_from_npy_type(int npy_type);
+extern mcpp_arrays::mcpp_typeid mcpp_typeid_from_npy_type(int npy_type, const char *where=nullptr);
 
-extern std::shared_ptr<mcpp_arrays::array_reaper> make_mcpp_array_reaper(const py_object &x);
+extern std::shared_ptr<mcpp_arrays::mcpp_reaper> make_mcpp_reaper_from_pybase(const py_object &x);
 
-
-// -------------------------------------------------------------------------------------------------
-//
-// The boilerplate below defines
-//
-//   mcpp_type<T>::id, the compile-time typeid corresponding to C++ type T.
-
-
+extern py_object make_pybase_from_mcpp_reaper(const std::shared_ptr<mcpp_arrays::mcpp_reaper> &reaper);
 
 
 // -------------------------------------------------------------------------------------------------

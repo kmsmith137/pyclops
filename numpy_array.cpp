@@ -2,7 +2,7 @@
 #include "pyclops/internals.hpp"
 
 using namespace std;
-using namespace mccp_arrays;
+using namespace mcpp_arrays;
 
 namespace pyclops {
 #if 0
@@ -49,30 +49,32 @@ const char *npy_typestr(int npy_type)
 }
 
 
-int mcpp_typeid_from_npy_type(int npy_type)
+mcpp_typeid mcpp_typeid_from_npy_type(int npy_type, const char *where)
 {
     switch (npy_type) {
-	case NPY_INT8: return MCPP_INT8;
-	case NPY_INT16: return MCPP_INT16;
-	case NPY_INT32: return MCPP_INT32;
-	case NPY_INT64: return MCPP_INT64;
-	case NPY_UINT8: return MCPP_UINT8;
-	case NPY_UINT16: return MCPP_UINT16;
-	case NPY_UINT32: return MCPP_UINT32;
-	case NPY_UINT64: return MCPP_UINT64;
-	case NPY_FLOAT32: return MCPP_FLOAT32;
-	case NPY_FLOAT64: return MCPP_FLOAT64;
-	case NPY_COMPLEX64: return MCPP_COMPLEX64;
-	case NPY_COMPLEX128: return MCPP_COMPLEX128;
+	case NPY_BYTE: return mcpp_arrays::mcpp_type<char>::id;
+	case NPY_UBYTE: return mcpp_arrays::mcpp_type<unsigned char>::id;
+	case NPY_SHORT: return mcpp_arrays::mcpp_type<short>::id;
+	case NPY_USHORT: return mcpp_arrays::mcpp_type<unsigned short>::id;
+	case NPY_INT: return mcpp_arrays::mcpp_type<int>::id;
+	case NPY_UINT: return mcpp_arrays::mcpp_type<unsigned int>::id;
+	case NPY_LONG: return mcpp_arrays::mcpp_type<long>::id;
+	case NPY_ULONG: return mcpp_arrays::mcpp_type<unsigned long>::id;
+	case NPY_FLOAT: return mcpp_arrays::mcpp_type<float>::id;
+	case NPY_DOUBLE: return mcpp_arrays::mcpp_type<double>::id;
+	case NPY_CFLOAT: return mcpp_arrays::mcpp_type<std::complex<float> >::id;
+	case NPY_CDOUBLE: return mcpp_arrays::mcpp_type<std::complex<double> >::id;
     }
 
     stringstream ss;
+    if (where)
+	ss << where << ": ";
     ss << "numpy type " << npy_type << "(" << npy_typestr(npy_type) << ") is not supported by mcpp_arrays";
     throw runtime_error(ss.str());
 }
 
 
-int npy_type_from_mcpp_typeid(mcpp_array::typeid mcpp_type)
+int npy_type_from_mcpp_typeid(mcpp_typeid mcpp_type, const char *where)
 {
     switch (mcpp_type) {
 	case MCPP_INT8: return NPY_INT8;
@@ -87,9 +89,14 @@ int npy_type_from_mcpp_typeid(mcpp_array::typeid mcpp_type)
 	case MCPP_FLOAT64: return NPY_FLOAT64;
 	case MCPP_COMPLEX64: return NPY_COMPLEX64;
 	case MCPP_COMPLEX128: return NPY_COMPLEX128;
+	case MCPP_INVALID: break;  // compiler pacifier
     }
     
-    throw runtime_error("invalid mcpp_array::typeid: " + to_string(mcpp_type));
+    stringstream ss;
+    if (where)
+	ss << where << ": ";
+    ss << "invalid mcpp_typeid: " << mcpp_type;
+    throw runtime_error(ss.str());
 }
 
 
@@ -106,7 +113,7 @@ int npy_type_from_mcpp_typeid(mcpp_array::typeid mcpp_type)
 //   - mcpp_pybase: a new python type whose instances wrap an mccp_arrays::array_reaper.
 
 
-struct np_reaper : public mcpp_arrays::mcpp_array_reaper {
+struct np_reaper : public mcpp_arrays::mcpp_reaper {
     py_object x;
     np_reaper(const py_object &x_) : x(x_) { }
     virtual ~np_reaper() { }
@@ -116,9 +123,7 @@ struct np_reaper : public mcpp_arrays::mcpp_array_reaper {
 struct mcpp_pybase {
     PyObject_HEAD
 
-    shared_ptr<mcpp_arrays::mcpp_array_reaper> *reaper;
-    
-    // These tp_new() and tp_dealloc() are 
+    shared_ptr<mcpp_arrays::mcpp_reaper> *reaper;
     
     static PyObject *tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     {
@@ -139,6 +144,9 @@ struct mcpp_pybase {
 	self->reaper = nullptr;
 	Py_TYPE(self)->tp_free(self_);
     }                
+
+    static constexpr const char *docstring = 
+	"Helper class for sharing reference counts between C++ and Python arrays";
 };
 
 
@@ -163,7 +171,7 @@ static PyTypeObject mcpp_pybase_type {
     0,                         /* tp_setattro */
     0,                         /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    mcpp_pybase_docstring,  /* tp_doc */
+    mcpp_pybase::docstring,    /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -189,40 +197,48 @@ static PyTypeObject mcpp_pybase_type {
 // Externally-visible helpers for garbage collection.
 
 
-shared_ptr<mcpp_arrays::array_reaper> mcpp_reaper_from_pybase(const py_object &x)
+// Make a C++ reaper which wraps python object 'x'.
+shared_ptr<mcpp_arrays::mcpp_reaper> make_mcpp_reaper_from_pybase(const py_object &x)
 {
-    if (!PyObject_IsInstance(x.ptr(), (PyObject *) &mcpp_pybase_type))
+    // Typical case: construct new reaper.
+    if (!PyObject_IsInstance(x.ptr, (PyObject *) &mcpp_pybase_type))
 	return make_shared<np_reaper> (x);
 
-    mcpp_pybase *mp = (mcpp_pybase *) (x.ptr());
+    // Special case: 'x' is a python object which wraps a C++ reaper.
+    // In this case, rather than creating a new reaper, we return a pointer to the old one.
+    mcpp_pybase *mp = (mcpp_pybase *) (x.ptr);
     
     if (!mp->reaper)
-	throw runtime_error(xx);
+	throw runtime_error("pyclops internal error: unexpected null pointer in make_mcpp_reaper_from_pybase()");
 
-    shared_ptr<mcpp_arrays::array_reaper> ret = *(mp->reaper);
+    shared_ptr<mcpp_arrays::mcpp_reaper> ret = *(mp->reaper);
 
     if (!ret)
-	throw runtime_error(xx);
+	throw runtime_error("pyclops internal error: unexpected empty pointer in make_mcpp_reaper_from_pybase()");
 
     return ret;
 }
 
 
-py_object make_mcpp_pybase(const shared_ptr<mcpp_arrays::array_reaper> &reaper)
+py_object make_pybase_from_mcpp_reaper(const shared_ptr<mcpp_arrays::mcpp_reaper> &reaper)
 {
     if (!reaper)
-	throw runtime_error("pyclops internal error: empty 'reaper' pointer passed to make_mcpp_pybase()");
+	throw runtime_error("pyclops internal error: empty 'reaper' pointer passed to make_pybase_from_mcpp_reaper()");
 
+    // Special case: 'reaper' is a C++ reaper which wraps a pybase.
+    // In this case, rather than creating a new pybase, we return the old one.
     np_reaper *npp = dynamic_cast<np_reaper *> (reaper.get());
     
     if (npp)
 	return npp->x;
 
-    PyObject *p = mcpp_pybase::tp_new(&mcpp_pybase, NULL, NULL);
+    // Typical case: construct new pybase object.
+
+    PyObject *p = mcpp_pybase::tp_new(&mcpp_pybase_type, NULL, NULL);
     py_object ret = py_object::new_reference(p);
 
     mcpp_pybase *mp = (mcpp_pybase *) (p);
-    p->reaper = new shared_ptr<mcpp_arrays::array_reaper> (reaper);
+    mp->reaper = new shared_ptr<mcpp_arrays::mcpp_reaper> (reaper);
     
     return ret;
 }

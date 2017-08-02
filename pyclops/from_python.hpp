@@ -1,7 +1,7 @@
 #ifndef _PYCLOPS_FROM_PYTHON_HPP
 #define _PYCLOPS_FROM_PYTHON_HPP
 
-#include <mccp_arrays.hpp>
+#include <mcpp_arrays.hpp>
 
 #include "py_object.hpp"
 #include "py_tuple.hpp"
@@ -67,34 +67,34 @@ inline mcpp_arrays::rs_array<T> from_python(const py_object &x, const char *wher
     npy_intp *shape = a.shape();
     npy_intp *strides = a.strides();
     npy_intp itemsize = a.itemsize();
-    
-    // mcpp_typeid_from_npy_type<>() has the following semantics:
-    //
-    //  - If (T != void), then there is a unique npy_type which is expected.
-    //    We check that the actual npy_type matches, and return the associated mcpp_typeid.
-    //
-    //  - If (T == void), then we return the mcpp_typeid associated to the npy_type,
-    //    or throw an exception if no such mcpp_typeid exists (e.g. 
-    //    and 
-    mcpp_arrays::mcpp_typeid dtype = mcpp_typeid_from_npy_type<T> (a.npy_type(), where);
+    T *data = reinterpret_cast<T *> (a.data());
 
-    rs_array<T> ret();
-    
-    ret._alloc_sbuf(ndim);
+    // FIXME how to handle case where numpy array is read-only,
+    // and T is a non-const type?
+
+    auto dtype = mcpp_typeid_from_npy_type(a.npy_type(), where);
+    auto reaper = make_mcpp_reaper_from_pybase(a.base());
+
+    // Note: rs_array constructor will throw an exception if 'dtype' doesn't match T.
+    // Note: this is an "incomplete" constructor, still need to set shape/strides and call _finalize_shape_and_strides().
+    mcpp_arrays::rs_array<T> ret(ndim, data, dtype, dtype, reaper, where);
+
+    // This check should never fail, but seemed like a good idea.
+    if (ret.itemsize != itemsize)
+	throw std::runtime_error("pyclops internal error: itemsize mismatch in rs_array from_python converter");
 
     for (int i = 0; i < ndim; i++) {
+	// FIXME how to handle case where stride is not divisible by itemsize?
+	if (strides[i] % itemsize != 0)
+	    throw std::runtime_error("pyclops internal error: can't divide stride by itemsize");
 	ret.shape[i] = shape[i];
 	ret.strides[i] = strides[i] / itemsize;
     }
 
-    ret.itemsize = itemsize;
-    ret.dtype = rstype_from_npytype(a.npy_type());
-    ret.data = a.data();
+    // Finishes construction of rs_array, as noted above.
+    ret._finalize_shape_and_strides(where);
 
-    ret._set_ndim(ndim);
-    
-    ret._set_ncontig();
-    ret._reaper = make_rs_array_reaper(a.base());
+    return ret;
 }
 
 

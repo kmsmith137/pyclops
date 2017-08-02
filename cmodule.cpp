@@ -9,34 +9,34 @@ namespace pyclops {
 #endif
 
 
-cmodule::cmodule(const string &name, const string &docstring) :
+extension_module::extension_module(const string &name, const string &docstring) :
     module_name(name),
     module_docstring(docstring)
 {
     if (name.size() == 0)
-	throw runtime_error("pyclops: cmodule name must be a nonempty string");
+	throw runtime_error("pyclops: extension_module name must be a nonempty string");
 }
 
 
-void cmodule::add_function(const string &func_name, const string &func_docstring, std::function<py_object(py_tuple,py_dict)> func)
+void extension_module::add_function(const string &func_name, const string &func_docstring, std::function<py_object(py_tuple,py_dict)> func)
 {
     if (finalized)
-	throw runtime_error("pyclops: cmodule::add_function() called after cmodule::finalize()");
+	throw runtime_error("pyclops: extension_module::add_function() called after extension_module::finalize()");
 
     this->module_methods.push_back({ func_name, func_docstring, func });
 }
 
 
-void cmodule::add_function(const string &func_name, std::function<py_object(py_tuple,py_dict)> func)
+void extension_module::add_function(const string &func_name, std::function<py_object(py_tuple,py_dict)> func)
 {
     add_function(func_name, "", func);
 }
 
 
-void cmodule::finalize()
+void extension_module::finalize()
 {
     if (finalized)
-	throw runtime_error("pyclops: double call to cmodule::finalize()");
+	throw runtime_error("pyclops: double call to extension_module::finalize()");
 
     // FIXME(?): small memory leaks below.
 

@@ -88,7 +88,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 {
     import_array();
 
-    cmodule m("the_greatest_module", "The greatest!");
+    extension_module m("the_greatest_module", "The greatest!");
 
     m.add_function("add", 
 		   "Addition, baby",

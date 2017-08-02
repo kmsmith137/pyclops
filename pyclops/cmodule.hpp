@@ -15,9 +15,9 @@ namespace pyclops {
 #endif
 
 
-struct cmodule {
+struct extension_module {
 public:
-    cmodule(const std::string &name, const std::string &docstring="");
+    extension_module(const std::string &name, const std::string &docstring="");
 
     void add_function(const std::string &func_name, const std::string &func_docstring, std::function<py_object(py_tuple,py_dict)> func);
     void add_function(const std::string &func_name, std::function<py_object(py_tuple,py_dict)> func);   // empty docstring

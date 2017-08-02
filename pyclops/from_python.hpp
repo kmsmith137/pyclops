@@ -15,16 +15,16 @@ namespace pyclops {
 #endif
 
 
-// For each type T, we define a static member function
+// For each type T, we define static member functions
 //
-// struct from_python<T> {
-//    static T convert(const py_object &x, const char *where=nullptr);
+// struct converter<T> {
+//    static T from_python(const py_object &x, const char *where=nullptr);
 // };
 //
 // FIXME: this API can probably be improved!
 
 
-template<typename T> struct from_python;
+template<typename T> struct converter;
 
 
 // -------------------------------------------------------------------------------------------------
@@ -36,20 +36,20 @@ template<typename T> struct from_python;
 // can we arrange things so that it is automatically used as the converter?
 
 
-template<> struct from_python<py_object> {
-    static py_object convert(const py_object &x, const char *where=nullptr) { return x; }
+template<> struct converter<py_object> {
+    static py_object from_python(const py_object &x, const char *where=nullptr) { return x; }
 };
 
-template<> struct from_python<py_tuple> {
-    static py_tuple convert(const py_object &x, const char *where=nullptr) { return py_tuple(x,where); }
+template<> struct converter<py_tuple> {
+    static py_tuple from_python(const py_object &x, const char *where=nullptr) { return py_tuple(x,where); }
 };
 
-template<> struct from_python<py_dict> {
-    static py_dict convert(const py_object &x, const char *where=nullptr) { return py_dict(x,where); }
+template<> struct converter<py_dict> {
+    static py_dict from_python(const py_object &x, const char *where=nullptr) { return py_dict(x,where); }
 };
 
-template<> struct from_python<py_array> {
-    static py_array convert(const py_object &x, const char *where=nullptr) { return py_array(x,where); }
+template<> struct converter<py_array> {
+    static py_array from_python(const py_object &x, const char *where=nullptr) { return py_array(x,where); }
 };
 
 
@@ -58,8 +58,8 @@ template<> struct from_python<py_array> {
 // Some fundamental types (integers, floating-point, strings, etc.)
 
 
-template<> struct from_python<ssize_t> {
-    static ssize_t convert(const py_object &x, const char *where=nullptr)
+template<> struct converter<ssize_t> {
+    static ssize_t from_python(const py_object &x, const char *where=nullptr)
     {
 	ssize_t n = PyInt_AsSsize_t(x.ptr);
 	if ((n == -1) && PyErr_Occurred())
@@ -69,8 +69,8 @@ template<> struct from_python<ssize_t> {
 };
 
 
-template<> struct from_python<double> {
-    static double convert(const py_object &x, const char *where=nullptr)
+template<> struct converter<double> {
+    static double from_python(const py_object &x, const char *where=nullptr)
     {
 	double ret = PyFloat_AsDouble(x.ptr);
 	if ((ret == -1.0) && PyErr_Occurred())
@@ -80,8 +80,8 @@ template<> struct from_python<double> {
 };
 
 
-template<> struct from_python<std::string> {
-    static std::string convert(const py_object &x, const char *where=nullptr)
+template<> struct converter<std::string> {
+    static std::string from_python(const py_object &x, const char *where=nullptr)
     {
 	char *ret = PyString_AsString(x.ptr);
 	if (!ret)
@@ -97,8 +97,8 @@ template<> struct from_python<std::string> {
 
 
 template<typename T> 
-struct from_python<mcpp_arrays::rs_array<T>> {
-    static mcpp_arrays::rs_array<T> convert(const py_object &x, const char *where=nullptr)
+struct converter<mcpp_arrays::rs_array<T>> {
+    static mcpp_arrays::rs_array<T> from_python(const py_object &x, const char *where=nullptr)
     {
 	py_array a(x);
 

@@ -86,14 +86,19 @@ static py_object make_array(py_tuple dims)
 
 struct X {
     ssize_t x;    
-    X(ssize_t x_) : x(x_) { cerr << "X::X(" << x << ") " << this << "\n"; }
-    ~X() { cerr << "X::~X(" << x << ") " << this << "\n"; }
+    X(ssize_t x_) : x(x_) { cout << "    X::X(" << x << ") " << this << endl; }
+    X(const X &x_) : x(x_.x) { cout << "    X::X(" << x << ") " << this << endl; }
+    ~X() { cout << "    X::~X(" << x << ") " << this << endl; }
     ssize_t get() { return x; }
 };
 
 
+// Declare X type object.
 static extension_type<X> X_type("X", "The awesome X class");
 
+
+// Converters for working with X objects (not X& references).
+// Using these will lead to many unnecessary copy constructors!
 template<>
 struct converter<X> {
     static X from_python(const py_object &obj, const char *where=nullptr)
@@ -108,6 +113,23 @@ struct converter<X> {
 	return extension_type<X>::to_python(X_type.tobj, p);
     }
 };
+
+
+// Converters for working with shared_ptr<X> objects.
+// Using these will lead to many shared_ptr<X>() copy constructors, but no X() copy constructors.
+template<>
+struct converter<shared_ptr<X>> {
+    static shared_ptr<X> from_python(const py_object &obj, const char *where=nullptr)
+    {
+	return extension_type<X>::from_python(X_type.tobj, obj, where);
+    }
+
+    static py_object to_python(const shared_ptr<X> &x)
+    {
+	return extension_type<X>::to_python(X_type.tobj, x);
+    }
+};
+
 
 
 PyMODINIT_FUNC initthe_greatest_module(void)
@@ -149,12 +171,24 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     auto make_X = [](ssize_t i) -> X { return X(i); };
     auto get_X = [](X x) -> ssize_t { return x.get(); };
+    auto make_Xp = [](ssize_t i) -> shared_ptr<X> { return make_shared<X> (i); };
+    auto get_Xp = [](shared_ptr<X> x) -> ssize_t { return x->get(); };
+    auto clone_Xp = [](shared_ptr<X> x) -> shared_ptr<X> { return x; };
 
     m.add_function("make_X",
 		   toy_wrap(std::function<X(ssize_t)> (make_X)));
 
     m.add_function("get_X",
 		   toy_wrap(std::function<ssize_t(X)> (get_X)));
+
+    m.add_function("make_Xp",
+		   toy_wrap(std::function<shared_ptr<X>(ssize_t)> (make_Xp)));
+
+    m.add_function("get_Xp",
+		   toy_wrap(std::function<ssize_t(shared_ptr<X>)> (get_Xp)));
+
+    m.add_function("clone_Xp",
+		   toy_wrap(std::function<shared_ptr<X>(shared_ptr<X>)> (clone_Xp)));
 
     m.finalize();
 }

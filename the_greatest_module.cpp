@@ -181,5 +181,10 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("clone_Xp",
 		   toy_wrap(std::function<shared_ptr<X>(shared_ptr<X>)> (clone_Xp)));
 
+    auto get_basicsize = [](py_type t) -> ssize_t { return t.get_basicsize(); };
+
+    m.add_function("get_basicsize",
+		   toy_wrap(std::function<ssize_t(py_type)> (get_basicsize)));
+
     m.finalize();
 }

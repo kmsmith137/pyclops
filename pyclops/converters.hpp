@@ -8,6 +8,7 @@
 #include "py_tuple.hpp"
 #include "py_dict.hpp"
 #include "py_array.hpp"
+#include "py_type.hpp"
 
 
 namespace pyclops {
@@ -56,6 +57,11 @@ template<> struct converter<py_dict> {
 template<> struct converter<py_array> {
     static py_array from_python(const py_object &x, const char *where=nullptr) { return py_array(x,where); }
     static py_object to_python(const py_array &x) { return x; }
+};
+
+template<> struct converter<py_type> {
+    static py_type from_python(const py_object &x, const char *where=nullptr) { return py_type(x,where); }
+    static py_object to_python(const py_type &x) { return x; }
 };
 
 

@@ -13,6 +13,7 @@
 #include "pyclops/py_tuple.hpp"
 #include "pyclops/py_dict.hpp"
 #include "pyclops/py_array.hpp"
+#include "pyclops/py_type.hpp"
 
 #include "pyclops/converters.hpp"
 #include "pyclops/cfunction_table.hpp"

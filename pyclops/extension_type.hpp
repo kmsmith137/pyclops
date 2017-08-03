@@ -16,7 +16,10 @@ namespace pyclops {
 template<typename T>
 struct class_wrapper {
     PyObject_HEAD
-    T *ptr = nullptr;
+
+    // Note: constructed with "placement new" (in add_constructor() and to_python() below), 
+    // and destroyed with direct call to shared_ptr<T> destructor (in tp_dealloc() below).
+    std::shared_ptr<T> ptr;
 };
 
 
@@ -24,16 +27,18 @@ template<typename T>
 struct extension_type {
     extension_type(const std::string &name, const std::string &docstring="");
 
-    inline void add_constructor(std::function<T* (py_tuple,py_dict)> f);
+    inline void add_constructor(std::function<std::shared_ptr<T> (py_tuple,py_dict)> f);
 
+    // FIXME: decide whether the "self" argument of the C++ method should be (T *),
+    // as currently assumed, or shared_ptr<T>.
     inline void add_method(const std::string &name,
 			   const std::string &docstring,
 			   std::function<py_object(T *,py_tuple,py_dict)> f);
 
     inline void finalize();
 
-    static inline T *from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
-    static inline py_object to_python(PyTypeObject *tobj, const T &x);
+    static inline std::shared_ptr<T> from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
+    static inline py_object to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x);
     static inline void tp_dealloc(PyObject *self);
 
     PyTypeObject *tobj = nullptr;
@@ -71,15 +76,15 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
 
 
 template<typename T>
-inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_dict)> f)
+inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> (py_tuple, py_dict)> f)
 {
     if (finalized)
-	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_method() was called after finalize()");
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was called after finalize()");
     if (tobj->tp_new)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::add_constructor()");
 
     auto g = [f](PyTypeObject *type, py_tuple args, py_dict kwds) -> PyObject* {
-	T *tp = f(args, kwds);
+	std::shared_ptr<T> tp = f(args, kwds);
 	if (!tp)
 	    throw std::runtime_error(std::string(type->tp_name) + ": constructor returned null pointer?!");
 
@@ -87,12 +92,19 @@ inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_di
 	if (!ret)
 	    throw pyerr_occurred();
 
-	class_wrapper<T> *wret = reinterpret_cast<class_wrapper<T> *> (ret);
-	wret->ptr = tp;
+	std::cerr << "tp_new(1): tp=" << tp.get() << ", refcount=" << tp.use_count() << "\n";
+
+	// class_wrapper<T>::ptr is constructed here, with "placement new".
+	class_wrapper<T> *wp = reinterpret_cast<class_wrapper<T> *> (ret);	
+	new(&wp->ptr) std::shared_ptr<T> (tp);
+
+	std::cerr << "tp_new(2): tp=" << tp.get() << ", refcount=" << tp.use_count() << "\n";
+	std::cerr << "tp_new(3): wp->ptr=" << wp->ptr.get() << ", refcount=" << wp->ptr.use_count() << "\n";
+
 	return ret;
     };
 
-    // Convert std::function to cfunction.
+    // Convert std::function to C-style function pointer.
     tobj->tp_new = make_kwargs_newfunc(g);
 }
 
@@ -107,8 +119,8 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
     PyTypeObject *tp = this->tobj;
 
     auto g = [f,where,tp](py_object self, py_tuple args, py_dict kwds) -> py_object {
-	T *tself = extension_type<T>::from_python(tp, self, where);
-	return f(tself, args, kwds);
+	std::shared_ptr<T> tself = extension_type<T>::from_python(tp, self, where);
+	return f(tself.get(), args, kwds);
     };
 
     PyMethodDef m;
@@ -141,7 +153,7 @@ inline void extension_type<T>::finalize()
 
 
 template<typename T>
-inline T *extension_type<T>::from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
+inline std::shared_ptr<T> extension_type<T>::from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
 {
     if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj)) {
 	throw std::runtime_error(std::string(where ? where : "pyclops") 
@@ -149,24 +161,21 @@ inline T *extension_type<T>::from_python(PyTypeObject *tobj, const py_object &ob
 				 + tobj->tp_name);
     }
 
-    auto *wobj = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
-    return wobj->ptr;
+    auto *wp = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
+    return wp->ptr;
 }
 
 
 template<typename T>
-inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const T &t)
+inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x)
 {
-    T *tp = new T(t);
-    if (!tp)
-	throw std::runtime_error("pyclops: allocation failed in to_python converter");
-
     PyObject *obj = tobj->tp_alloc(tobj, 0);
     if (!obj)
 	throw pyerr_occurred();
 
+    // class_wrapper<T>::ptr is constructed here, with "placement new".
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj);
-    wp->ptr = tp;
+    new(&wp->ptr) std::shared_ptr<T> (x);
 
     return py_object::new_reference(obj);
 }
@@ -175,12 +184,19 @@ inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const T &t)
 template<typename T>
 inline void extension_type<T>::tp_dealloc(PyObject *self)
 {
+    std::cerr << "tp_dealloc\n";
+
     // FIXME it would be nice to check that 'self' is an instance of extension_type<T>,
     // before doing the cast.  This is possible but would require a new cfunction_table I think!
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (self);
-    delete wp->ptr;
-    wp->ptr = nullptr;
+
+    // Should be unnecessary, but I'm paranoid.
+    wp->ptr.reset();
+
+    // class_wrapper<T>::ptr is destroyed here, with direct destructor call.
+    // I wonder if this is also unnecessary, now that the shared_ptr has been reset!
+    wp->ptr.~shared_ptr();
 }
 
 

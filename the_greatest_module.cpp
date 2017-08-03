@@ -86,7 +86,8 @@ static py_object make_array(py_tuple dims)
 
 struct X {
     ssize_t x;    
-    X(ssize_t x_) : x(x_) { }
+    X(ssize_t x_) : x(x_) { cerr << "X::X(" << x << ") " << this << "\n"; }
+    ~X() { cerr << "X::~X(" << x << ") " << this << "\n"; }
     ssize_t get() { return x; }
 };
 
@@ -97,13 +98,14 @@ template<>
 struct converter<X> {
     X from_python(const py_object &obj, const char *where=nullptr)
     {
-	X *p = extension_type<X>::from_python(X_type.tobj, obj, where);
+	auto p = extension_type<X>::from_python(X_type.tobj, obj, where);
 	return *p;
     }
 
     py_object to_python(const X &x)
     {
-	return extension_type<X>::to_python(X_type.tobj, x);
+	auto p = make_shared<X> (x);
+	return extension_type<X>::to_python(X_type.tobj, p);
     }
 };
 
@@ -127,11 +129,11 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("make_array",
 		   toy_wrap(std::function<py_object(py_tuple)> (make_array)));
 
-    auto X_constructor = [](py_tuple args, py_dict kwds) -> X* {
+    auto X_constructor = [](py_tuple args, py_dict kwds) -> shared_ptr<X> {
 	if ((args.size() != 1) || (kwds.size() != 0))
 	    throw runtime_error("bad call to X.__init__()");
 	ssize_t x = converter<ssize_t>::from_python(args.get_item(0), "X.__init__()");
-	return new X(x);
+	return make_shared<X> (x);
     };
 
     auto X_get = [](X *self, py_tuple args, py_dict kwds) -> py_object {

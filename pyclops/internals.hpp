@@ -32,7 +32,7 @@ extern void set_python_error(const std::exception &e) noexcept;
 
 extern PyCFunction make_kwargs_cfunction(std::function<py_object(py_tuple,py_dict)> f);
 extern PyCFunction make_kwargs_cmethod(std::function<py_object(py_object,py_tuple,py_dict)> f);
-extern newfunc make_kwargs_tp_new(std::function<PyObject* (PyTypeObject *, py_tuple, py_dict)> f);
+extern newfunc make_kwargs_newfunc(std::function<PyObject* (PyTypeObject *, py_tuple, py_dict)> f);
 
 // Used to manage addition of the 'pyclops.mcpp_pybase' class to the pyclops.so extension module.
 extern void _add_reaper_type(PyObject *module);

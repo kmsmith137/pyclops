@@ -11,6 +11,7 @@ namespace pyclops {
 
 static constexpr int max_kwargs_cfunctions = 20;
 static constexpr int max_kwargs_cmethods = 50;
+static constexpr int max_kwargs_newfuncs = 20;
 
 
 // -------------------------------------------------------------------------------------------------
@@ -147,6 +148,69 @@ PyCFunction make_kwargs_cmethod(std::function<py_object(py_object,py_tuple,py_di
 
 
 // -------------------------------------------------------------------------------------------------
+//
+// kwargs_newfunc
+//
+// Input:    std::function<PyObject* (PyTypeObject *, py_tuple, py_dict)>
+// Output:   PyObject (*)(PyTypeObject *, PyObject *, PyObject *)
+
+
+struct kwargs_newfunc {
+    std::function<PyObject* (PyTypeObject *, py_tuple, py_dict)> cpp_func;
+    PyObject* (*c_func)(PyTypeObject *, PyObject *, PyObject *);
+};
+
+static vector<kwargs_newfunc> kwargs_newfuncs(max_kwargs_newfuncs);
+static int num_kwargs_newfuncs = 0;
+
+
+// non-inline
+PyObject *_kwargs_newfunc_body(PyTypeObject *type, PyObject *args, PyObject *kwds, int N)
+{
+    try {
+	py_tuple a = py_tuple::borrowed_reference(args);
+	py_dict k = kwds ? py_dict::borrowed_reference(kwds) : py_dict();
+	return kwargs_newfuncs[N].cpp_func(type, a, k);
+    }
+    catch (std::exception &e) {
+	set_python_error(e);
+	return NULL;
+    } catch (...) {
+	PyErr_SetString(PyExc_RuntimeError, "C++ exception was thrown, but not a subclass of std::exception");
+	return NULL;
+    }
+}
+
+
+template<int N>
+static PyObject *kwargs_newfunc_body(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    return _kwargs_newfunc_body(type, args, kwds, N);
+}
+
+
+template<int N, typename std::enable_if<(N==0),int>::type = 0>
+void initialize_kwargs_newfuncs() { }
+
+template<int N, typename std::enable_if<(N>0),int>::type = 0>
+void initialize_kwargs_newfuncs()
+{
+    initialize_kwargs_newfuncs<N-1>();    
+    kwargs_newfuncs[N-1].c_func = kwargs_newfunc_body<N-1>;
+}
+
+
+newfunc make_kwargs_newfunc(std::function<PyObject* (PyTypeObject*, py_tuple, py_dict)> f)
+{
+    if (num_kwargs_newfuncs >= max_kwargs_newfuncs)
+	throw runtime_error("pyclops: newfunc_table is full!");
+
+    kwargs_newfuncs[num_kwargs_newfuncs].cpp_func = f;
+    return kwargs_newfuncs[num_kwargs_newfuncs++].c_func;
+}
+
+
+// -------------------------------------------------------------------------------------------------
 
 
 namespace {
@@ -155,6 +219,7 @@ namespace {
 	{
 	    initialize_kwargs_cfunctions<max_kwargs_cfunctions> ();
 	    initialize_kwargs_cmethods<max_kwargs_cmethods> ();
+	    initialize_kwargs_newfuncs<max_kwargs_newfuncs> ();
 	}
     } _ini;
 }

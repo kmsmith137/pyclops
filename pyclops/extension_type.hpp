@@ -85,7 +85,7 @@ inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_di
     };
 
     // Convert std::function to cfunction.
-    tobj->tp_new = make_kwargs_tp_new(g);
+    tobj->tp_new = make_kwargs_newfunc(g);
 }
 
 

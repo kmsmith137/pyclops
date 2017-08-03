@@ -97,13 +97,13 @@ template<>
 struct converter<X> {
     X from_python(const py_object &obj, const char *where=nullptr)
     {
-	X *p = X_type.from_python(obj, where);
+	X *p = extension_type<X>::from_python(X_type.tobj, obj, where);
 	return *p;
     }
 
     py_object to_python(const X &x)
     {
-	return X_type.to_python(x);
+	return extension_type<X>::to_python(X_type.tobj, x);
     }
 };
 
@@ -134,7 +134,15 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 	return new X(x);
     };
 
+    auto X_get = [](X *self, py_tuple args, py_dict kwds) -> py_object {
+	if ((args.size() != 0) || (kwds.size() != 0))
+	    throw runtime_error("bad call to X.get()");
+	ssize_t ret = self->get();
+	return converter<ssize_t>::to_python(ret);
+    };
+
     X_type.add_constructor(X_constructor);
+    X_type.add_method("get", "get!", X_get);
 
     m.finalize();
 }

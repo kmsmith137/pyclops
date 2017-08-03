@@ -160,15 +160,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 	return make_shared<X> (x);
     };
 
-    auto X_get = [](X *self, py_tuple args, py_dict kwds) -> py_object {
-	if ((args.size() != 0) || (kwds.size() != 0))
-	    throw runtime_error("bad call to X.get()");
-	ssize_t ret = self->get();
-	return converter<ssize_t>::to_python(ret);
-    };
-
     X_type.add_constructor(X_constructor);
-    X_type.add_method("get", "get!", X_get);
+    X_type.add_method("get", "get!", toy_wrap(&X::get));
     m.add_type(X_type);
 
     auto make_X = [](ssize_t i) -> X { return X(i); };

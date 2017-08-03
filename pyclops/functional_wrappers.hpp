@@ -1,4 +1,8 @@
-// FIXME: the functional_wrappers could use a lot of improvement!
+// FIXME: the functional_wrappers could use improvement!
+//
+// Question for the future: is there a way to template-match a lambda-expression?
+// Currently we can apply wrappers to a std::function or a C-style function pointer,
+// but not a lambda-expression.  (As a workaround, we wrap lambdas in std::function.)
 
 #ifndef _PYCLOPS_FUNCTIONAL_WRAPPERS_HPP
 #define _PYCLOPS_FUNCTIONAL_WRAPPERS_HPP
@@ -74,12 +78,13 @@ struct _func_context<R,A,Ap...>
 // toy_wrap()
 
 
+// Wrap std::function.
 template<typename R, typename... Args>
 inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<R(Args...)> f)
 {
     return [f](py_tuple args, py_dict kwds) -> py_object
 	{
-	    // FIXME: improve this error message, and others in this source file!
+	    // FIXME: improve this error message
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
 	    _func_context<R,Args...> cargs(args);
@@ -88,10 +93,44 @@ inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<R(Args.
 }
 
 
+// Wrap C-style function pointer.
 template<typename R, typename... Args>
 inline std::function<py_object(py_tuple,py_dict)> toy_wrap(R (*f)(Args...))
 {
     return toy_wrap(std::function<R(Args...)> (f));
+}
+
+
+// Helper class used when wrapping a member function (see next toy_wrap()).
+template<typename R, class C, typename... Args>
+struct _partial_bind {
+    R (C::*f)(Args...);
+    C *self;
+
+    _partial_bind(R (C::*f_)(Args...), C *self_) : 
+	f(f_), self(self_)
+    { }
+    
+    inline R operator()(Args... args) const 
+    { 
+	return (self->*f)(args...); 
+    }
+};
+
+
+// Wrap class member function.
+template<typename R, class C, typename... Args>
+inline std::function<py_object(C*, py_tuple, py_dict)> toy_wrap(R (C::*f)(Args...))
+{
+    return [f](C *self, py_tuple args, py_dict kwds)
+	{
+	    // FIXME: improve this error message
+	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
+		throw std::runtime_error("pyclops: wrong number of arguments to wrapped method");
+	    _func_context<R,Args...> cargs(args);
+	    _partial_bind<R,C,Args...> fself(f, self);
+	    return cargs._call(fself);
+	};
 }
 
 

@@ -1,4 +1,4 @@
-// FIXME: the functional_wrappers could use improvement!
+// FIXME: the functional_wrappers could use improvement!  (especially the constructor wrapper)
 //
 // Question for the future: is there a way to template-match a lambda-expression?
 // Currently we can apply wrappers to a std::function or a C-style function pointer,
@@ -32,7 +32,7 @@ template<> struct _func_context<void>
     _func_context(const py_tuple &t, ssize_t pos=0) { }
 
     template<typename F, typename... PArgs>
-    inline py_object _call(const F &f, PArgs... pargs)
+    inline py_object _py_call(const F &f, PArgs... pargs)
     {
 	f(pargs...);
 	return py_object();  // Py_None
@@ -46,9 +46,15 @@ template<typename R> struct _func_context<R>
     _func_context(const py_tuple &t, ssize_t pos=0) { }
 
     template<typename F, typename... PArgs>
-    inline py_object _call(const F &f, PArgs... pargs)
+    inline py_object _py_call(const F &f, PArgs... pargs)
     {
 	return converter<R>::to_python(f(pargs...));
+    }
+
+    template<typename F, typename... PArgs>
+    inline R _rcall(const F &f, PArgs... pargs)
+    {
+	return f(pargs...);
     }
 };    
 
@@ -66,9 +72,15 @@ struct _func_context<R,A,Ap...>
     { }
 
     template<typename F, typename... PArgs>
-    inline py_object _call(const F &f, PArgs... pargs)
+    inline py_object _py_call(const F &f, PArgs... pargs)
     {
-	return tail._call(f, pargs..., head);
+	return tail._py_call(f, pargs..., head);
+    }
+
+    template<typename F, typename... PArgs>
+    inline R _rcall(const F &f, PArgs... pargs)
+    {
+	return tail._rcall(f, pargs..., head);
     }
 };
 
@@ -88,7 +100,7 @@ inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<R(Args.
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
 	    _func_context<R,Args...> cargs(args);
-	    return cargs._call(f);
+	    return cargs._py_call(f);
 	};
 }
 
@@ -122,14 +134,29 @@ struct _partial_bind {
 template<typename R, class C, typename... Args>
 inline std::function<py_object(C*, py_tuple, py_dict)> toy_wrap(R (C::*f)(Args...))
 {
-    return [f](C *self, py_tuple args, py_dict kwds)
+    return [f](C *self, py_tuple args, py_dict kwds) -> py_object
 	{
 	    // FIXME: improve this error message
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("pyclops: wrong number of arguments to wrapped method");
 	    _func_context<R,Args...> cargs(args);
 	    _partial_bind<R,C,Args...> fself(f, self);
-	    return cargs._call(fself);
+	    return cargs._py_call(fself);
+	};
+}
+
+
+// Wrap constructor
+template<class C, typename... Args>
+inline std::function<std::shared_ptr<C>(py_tuple,py_dict)> toy_wrap_constructor(std::function<std::shared_ptr<C>(Args...)> f)
+{
+    return [f](py_tuple args, py_dict kwds) -> std::shared_ptr<C>
+	{
+	    // FIXME: improve this error message
+	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
+		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
+	    _func_context<std::shared_ptr<C>,Args...> cargs(args);
+	    return cargs._rcall(f);
 	};
 }
 

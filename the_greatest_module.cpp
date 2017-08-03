@@ -153,14 +153,10 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("make_array", toy_wrap(make_array));
     m.add_function("print_float", toy_wrap(print_float));
 
-    auto X_constructor = [](py_tuple args, py_dict kwds) -> shared_ptr<X> {
-	if ((args.size() != 1) || (kwds.size() != 0))
-	    throw runtime_error("bad call to X.__init__()");
-	ssize_t x = converter<ssize_t>::from_python(args.get_item(0), "X.__init__()");
-	return make_shared<X> (x);
-    };
+    auto X_constructor1 = [](ssize_t i) { return make_shared<X> (i); };
+    auto X_constructor2 = std::function<shared_ptr<X>(ssize_t)> (X_constructor1);
 
-    X_type.add_constructor(X_constructor);
+    X_type.add_constructor(toy_wrap_constructor(X_constructor2));
     X_type.add_method("get", "get!", toy_wrap(&X::get));
     m.add_type(X_type);
 

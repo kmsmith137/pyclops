@@ -44,6 +44,11 @@ protected:
 };
 
 
+// -------------------------------------------------------------------------------------------------
+//
+// Implementation.
+
+
 template<typename T>
 extension_type<T>::extension_type(const std::string &name, const std::string &docstring) :
     methods(new std::vector<PyMethodDef> ())
@@ -86,6 +91,38 @@ inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_di
 
     // Convert std::function to cfunction.
     tobj->tp_new = make_kwargs_newfunc(g);
+}
+
+
+template<typename T>
+inline T *extension_type<T>::from_python(const py_object &obj, const char *where)
+{
+    if (!PyObject_IsInstance(obj.ptr, (PyObject *) this->tobj)) {
+	throw std::runtime_error(std::string(where ? where : "pyclops") 
+				 + ": couldn't convert python object to type " 
+				 + tobj->tp_name);
+    }
+
+    auto *wobj = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
+    return wobj->ptr;
+}
+
+
+template<typename T>
+inline py_object extension_type<T>::to_python(const T &t)
+{
+    T *tp = new T(t);
+    if (!tp)
+	throw std::runtime_error("pyclops: allocation failed in to_python converter");
+
+    PyObject *obj = this->tobj->tp_alloc(tobj, 0);
+    if (!obj)
+	throw pyerr_occurred();
+
+    auto *wp = reinterpret_cast<class_wrapper<T> *> (obj);
+    wp->ptr = tp;
+
+    return py_object::new_reference(obj);
 }
 
 

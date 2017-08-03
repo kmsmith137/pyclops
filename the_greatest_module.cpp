@@ -93,6 +93,20 @@ struct X {
 
 static extension_type<X> X_type("X", "The awesome X class");
 
+template<>
+struct converter<X> {
+    X from_python(const py_object &obj, const char *where=nullptr)
+    {
+	X *p = X_type.from_python(obj, where);
+	return *p;
+    }
+
+    py_object to_python(const X &x)
+    {
+	return X_type.to_python(x);
+    }
+};
+
 
 PyMODINIT_FUNC initthe_greatest_module(void)
 {

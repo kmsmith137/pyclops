@@ -5,7 +5,7 @@ import numpy.random
 import pyclops
 import the_greatest_module
 
-print the_greatest_module.add(5,10)
+print 'Should be 15:', the_greatest_module.add(5,10)
 print the_greatest_module.describe_array(np.zeros((3,4,5), dtype=np.float32))
 
 a = numpy.random.uniform(size=(3,4,5))

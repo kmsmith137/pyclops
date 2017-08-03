@@ -16,51 +16,56 @@ namespace pyclops {
 
 // -------------------------------------------------------------------------------------------------
 //
-// _ntuple
+// _func_context
 
 
-template<typename... Args> struct _ntuple;
+template<typename R, typename... Args> struct _func_context;
 
-template<> struct _ntuple<> 
+
+// Void return type, without args
+template<> struct _func_context<void>
 {
-    _ntuple(const py_tuple &t, ssize_t pos=0) { }
-    
-    template<typename R, typename F, typename... PArgs>
-    inline R _rcall(const F &f, PArgs... pargs)
-    {
-	return f(pargs...);
-    }
+    _func_context(const py_tuple &t, ssize_t pos=0) { }
 
     template<typename F, typename... PArgs>
-    inline void _vcall(const F &f, PArgs... pargs)
+    inline py_object _call(const F &f, PArgs... pargs)
     {
 	f(pargs...);
+	return py_object();  // Py_None
     }
 };
 
-template<typename A, typename... Ap>
-struct _ntuple<A,Ap...> {
-    A head;
-    _ntuple<Ap...> tail;
 
-    _ntuple(const py_tuple &t, ssize_t pos=0) :
+// Non-void return type, without args
+template<typename R> struct _func_context<R>
+{
+    _func_context(const py_tuple &t, ssize_t pos=0) { }
+
+    template<typename F, typename... PArgs>
+    inline py_object _call(const F &f, PArgs... pargs)
+    {
+	return converter<R>::to_python(f(pargs...));
+    }
+};    
+
+
+// With arguments (return type may be void or non-void)
+template<typename R, typename A, typename... Ap> 
+struct _func_context<R,A,Ap...> 
+{
+    A head;
+    _func_context<R,Ap...> tail;
+
+    _func_context(const py_tuple &t, ssize_t pos=0) :
 	head(converter<A>::from_python(t.get_item(pos))),
 	tail(t, pos+1)
     { }
-    
-    // "Returning" call with return type R.
-    template<typename R, typename F, typename... PArgs>
-    inline R _rcall(const F &f, PArgs... pargs)
-    {
-	return tail.template _rcall<R> (f, pargs..., head);
-    }
 
-    // "Void" call returning void.
     template<typename F, typename... PArgs>
-    inline void _vcall(const F &f, PArgs... pargs)
+    inline py_object _call(const F &f, PArgs... pargs)
     {
-	tail._vcall(f, pargs..., head);
-    }    
+	return tail._call(f, pargs..., head);
+    }
 };
 
 
@@ -77,22 +82,8 @@ inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<R(Args.
 	    // FIXME: improve this error message, and others in this source file!
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
-	    _ntuple<Args...> cargs(args);
-	    return converter<R>::to_python(cargs.template _rcall<R> (f));
-	};
-}
-
-
-template<typename... Args>
-inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<void(Args...)> f)
-{
-    return [f](py_tuple args, py_dict kwds) -> py_object
-	{
-	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
-		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
-	    _ntuple<Args...> cargs(args);
-	    cargs._vcall(f);
-	    return py_object();  // returns None
+	    _func_context<R,Args...> cargs(args);
+	    return cargs._call(f);
 	};
 }
 

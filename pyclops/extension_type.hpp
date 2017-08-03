@@ -69,6 +69,8 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
 template<typename T>
 inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_dict)> f)
 {
+    if (finalized)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_method() was called after finalize()");
     if (tobj->tp_new)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::add_constructor()");
 
@@ -94,6 +96,9 @@ inline void extension_type<T>::add_constructor(std::function<T* (py_tuple, py_di
 template<typename T>
 inline void extension_type<T>::add_method(const std::string &name, const std::string &docstring, std::function<py_object(T*,py_tuple,py_dict)> f)
 {
+    if (finalized)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_method() was called after finalize()");
+
     char *where = strdup(name.c_str());
     PyTypeObject *tp = this->tobj;
 
@@ -109,6 +114,27 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
     m.ml_doc = strdup(docstring.c_str());
 
     this->methods->push_back(m);
+}
+
+
+template<typename T>
+inline void extension_type<T>::finalize()
+{
+    if (!tobj->tp_new)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was never called");
+
+    // FIXME double call to finalize() is OK, right?
+    if (finalized)
+	return;
+
+    int nmethods = methods->size();
+    
+    // Note that we include a zeroed sentinel.
+    tobj->tp_methods = (PyMethodDef *) malloc((nmethods+1) * sizeof(PyMethodDef));
+    memset(tobj->tp_methods, 0, (nmethods+1) * sizeof(PyMethodDef));
+    memcpy(tobj->tp_methods, &methods[0], nmethods * sizeof(PyMethodDef));
+
+    this->finalized = true;
 }
 
 

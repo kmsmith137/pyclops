@@ -84,6 +84,12 @@ static py_object make_array(py_tuple dims)
 }
 
 
+static void print_float(double x)
+{
+    cout << "print_float: " << x << endl;
+}
+
+
 struct X {
     ssize_t x;    
     X(ssize_t x_) : x(x_) { cout << "    X::X(" << x << ") " << this << endl; }
@@ -91,6 +97,9 @@ struct X {
     ~X() { cout << "    X::~X(" << x << ") " << this << endl; }
     ssize_t get() { return x; }
 };
+
+
+// -------------------------------------------------------------------------------------------------
 
 
 // Declare X type object.
@@ -150,6 +159,9 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     m.add_function("make_array",
 		   toy_wrap(std::function<py_object(py_tuple)> (make_array)));
+
+    m.add_function("print_float",
+		   toy_wrap(std::function<void(double)> (print_float)));
 
     auto X_constructor = [](py_tuple args, py_dict kwds) -> shared_ptr<X> {
 	if ((args.size() != 1) || (kwds.size() != 0))

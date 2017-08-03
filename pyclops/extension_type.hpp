@@ -92,14 +92,9 @@ inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> 
 	if (!ret)
 	    throw pyerr_occurred();
 
-	std::cerr << "tp_new(1): tp=" << tp.get() << ", refcount=" << tp.use_count() << "\n";
-
 	// class_wrapper<T>::ptr is constructed here, with "placement new".
 	class_wrapper<T> *wp = reinterpret_cast<class_wrapper<T> *> (ret);	
 	new(&wp->ptr) std::shared_ptr<T> (tp);
-
-	std::cerr << "tp_new(2): tp=" << tp.get() << ", refcount=" << tp.use_count() << "\n";
-	std::cerr << "tp_new(3): wp->ptr=" << wp->ptr.get() << ", refcount=" << wp->ptr.use_count() << "\n";
 
 	return ret;
     };
@@ -184,8 +179,6 @@ inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::sha
 template<typename T>
 inline void extension_type<T>::tp_dealloc(PyObject *self)
 {
-    std::cerr << "tp_dealloc\n";
-
     // FIXME it would be nice to check that 'self' is an instance of extension_type<T>,
     // before doing the cast.  This is possible but would require a new cfunction_table I think!
 

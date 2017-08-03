@@ -96,13 +96,13 @@ static extension_type<X> X_type("X", "The awesome X class");
 
 template<>
 struct converter<X> {
-    X from_python(const py_object &obj, const char *where=nullptr)
+    static X from_python(const py_object &obj, const char *where=nullptr)
     {
 	auto p = extension_type<X>::from_python(X_type.tobj, obj, where);
 	return *p;
     }
 
-    py_object to_python(const X &x)
+    static py_object to_python(const X &x)
     {
 	auto p = make_shared<X> (x);
 	return extension_type<X>::to_python(X_type.tobj, p);
@@ -145,7 +145,16 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     X_type.add_constructor(X_constructor);
     X_type.add_method("get", "get!", X_get);
-
     m.add_type(X_type);
+
+    auto make_X = [](ssize_t i) -> X { return X(i); };
+    auto get_X = [](X x) -> ssize_t { return x.get(); };
+
+    m.add_function("make_X",
+		   toy_wrap(std::function<X(ssize_t)> (make_X)));
+
+    m.add_function("get_X",
+		   toy_wrap(std::function<ssize_t(X)> (get_X)));
+
     m.finalize();
 }

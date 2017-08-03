@@ -143,7 +143,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     X_type.add_constructor(X_constructor);
     X_type.add_method("get", "get!", X_get);
-    X_type.finalize();
 
+    m.add_type(X_type);
     m.finalize();
 }

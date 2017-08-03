@@ -1,8 +1,8 @@
 #ifndef _PYCLOPS_ARRAY_HPP
 #define _PYCLOPS_ARRAY_HPP
 
-#include "py_object.hpp"
 #include <mcpp_arrays.hpp>
+#include "py_object.hpp"
 
 
 namespace pyclops {

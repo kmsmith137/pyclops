@@ -1,7 +1,11 @@
 #ifndef _PYCLOPS_EXTENSION_TYPE_HPP
 #define _PYCLOPS_EXTENSION_TYPE_HPP
 
-#include "internals.hpp"
+#include "py_object.hpp"
+#include "py_tuple.hpp"
+#include "py_dict.hpp"
+
+#include "cfunction_table.hpp"
 
 namespace pyclops {
 #if 0
@@ -122,10 +126,8 @@ inline void extension_type<T>::finalize()
 {
     if (!tobj->tp_new)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was never called");
-
-    // FIXME double call to finalize() is OK, right?
     if (finalized)
-	return;
+	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::finalize()");
 
     int nmethods = methods->size();
     

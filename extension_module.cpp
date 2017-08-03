@@ -44,10 +44,19 @@ void extension_module::finalize()
     if (finalized)
 	throw runtime_error("pyclops: double call to extension_module::finalize()");
 
-    int n = module_methods.size();
-    PyMethodDef *mdefs = (PyMethodDef *) malloc((n+1) * sizeof(PyMethodDef));
-    memset(mdefs, 0, (n+1) * sizeof(PyMethodDef));
-    memcpy(mdefs, &module_methods[0], n * sizeof(PyMethodDef));
+    int ntypes = module_types.size();
+    int nmethods = module_methods.size();
+
+    for (int i = 0; i < ntypes; i++) {
+	// FIXME: understand the conditions under which PyType_Ready() failed.
+	if (PyType_Ready(module_types[i]) < 0)
+	    throw runtime_error(module_name + "." + module_types[i]->tp_name + ": PyType_Ready() failed");
+    }
+
+    // Note: we append a zeroed sentinel here.
+    PyMethodDef *mdefs = (PyMethodDef *) malloc((nmethods+1) * sizeof(PyMethodDef));
+    memset(mdefs, 0, (nmethods+1) * sizeof(PyMethodDef));
+    memcpy(mdefs, &module_methods[0], nmethods * sizeof(PyMethodDef));
     
     PyObject *m = Py_InitModule3(strdup(module_name.c_str()),
 				 mdefs,
@@ -55,6 +64,12 @@ void extension_module::finalize()
 
     if (!m)
 	throw runtime_error("pyclops: Py_InitModule3() failed");
+
+    for (int i = 0; i < ntypes; i++) {
+	PyTypeObject *t = module_types[i];
+	Py_INCREF(t);
+	PyModule_AddObject(m, t->tp_name, (PyObject *) t);
+    }
 
     this->finalized = true;
 }

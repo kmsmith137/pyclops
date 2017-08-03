@@ -23,7 +23,13 @@ void extension_module::add_function(const string &func_name, const string &func_
     if (finalized)
 	throw runtime_error("pyclops: extension_module::add_function() called after extension_module::finalize()");
 
-    this->module_methods.push_back({ func_name, func_docstring, func });
+    PyMethodDef m;
+    m.ml_name = strdup(func_name.c_str());
+    m.ml_meth = make_kwargs_cfunction(func);
+    m.ml_flags = METH_VARARGS | METH_KEYWORDS;
+    m.ml_doc = strdup(func_docstring.c_str());
+
+    this->module_methods.push_back(m);
 }
 
 
@@ -38,19 +44,10 @@ void extension_module::finalize()
     if (finalized)
 	throw runtime_error("pyclops: double call to extension_module::finalize()");
 
-    // FIXME(?): small memory leaks below.
-
     int n = module_methods.size();
-
     PyMethodDef *mdefs = (PyMethodDef *) malloc((n+1) * sizeof(PyMethodDef));
     memset(mdefs, 0, (n+1) * sizeof(PyMethodDef));
-
-    for (int i = 0; i < n; i++) {
-	mdefs[i].ml_name = strdup(module_methods[i].func_name.c_str());
-	mdefs[i].ml_meth = make_kwargs_cfunction(module_methods[i].func);
-	mdefs[i].ml_flags = METH_VARARGS | METH_KEYWORDS;
-	mdefs[i].ml_doc = strdup(module_methods[i].func_docstring.c_str());
-    }
+    memcpy(mdefs, &module_methods[0], n * sizeof(PyMethodDef));
     
     PyObject *m = Py_InitModule3(strdup(module_name.c_str()),
 				 mdefs,

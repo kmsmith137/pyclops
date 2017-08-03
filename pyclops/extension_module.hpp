@@ -30,13 +30,8 @@ protected:
     const std::string module_name;
     const std::string module_docstring;
 
-    struct method_table_entry {
-	std::string func_name;
-	std::string func_docstring;
-	std::function<py_object(py_tuple,py_dict)> func;
-    };
-
-    std::vector<method_table_entry> module_methods;
+    // Reminder: a PyMethodDef is a (name, func, flags, docstring) quadruple.
+    std::vector<PyMethodDef> module_methods;
     bool finalized = false;
 };
 

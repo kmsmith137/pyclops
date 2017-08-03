@@ -48,7 +48,7 @@ void extension_module::finalize()
     int nmethods = module_methods.size();
 
     for (int i = 0; i < ntypes; i++) {
-	// FIXME: understand the conditions under which PyType_Ready() failed.
+	// FIXME: understand the conditions under which PyType_Ready() fails.
 	if (PyType_Ready(module_types[i]) < 0)
 	    throw runtime_error(module_name + "." + module_types[i]->tp_name + ": PyType_Ready() failed");
     }

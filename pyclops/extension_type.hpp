@@ -130,11 +130,11 @@ inline void extension_type<T>::finalize()
 	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::finalize()");
 
     int nmethods = methods->size();
-    
+
     // Note that we include a zeroed sentinel.
     tobj->tp_methods = (PyMethodDef *) malloc((nmethods+1) * sizeof(PyMethodDef));
     memset(tobj->tp_methods, 0, (nmethods+1) * sizeof(PyMethodDef));
-    memcpy(tobj->tp_methods, &methods[0], nmethods * sizeof(PyMethodDef));
+    memcpy(tobj->tp_methods, &(*methods)[0], nmethods * sizeof(PyMethodDef));
 
     this->finalized = true;
 }

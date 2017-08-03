@@ -147,21 +147,11 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     extension_module m("the_greatest_module", "The greatest!");
 
-    m.add_function("add", 
-		   "Addition, baby",
-		   toy_wrap(std::function<ssize_t(ssize_t,ssize_t)> (add)));
-
-    m.add_function("describe_array",
-		   toy_wrap(std::function<string(py_array)> (describe_array)));
-
-    m.add_function("sum_array",
-		   toy_wrap(std::function<double(rs_array<double>)> (sum_array)));
-
-    m.add_function("make_array",
-		   toy_wrap(std::function<py_object(py_tuple)> (make_array)));
-
-    m.add_function("print_float",
-		   toy_wrap(std::function<void(double)> (print_float)));
+    m.add_function("add", toy_wrap(add));
+    m.add_function("describe_array", toy_wrap(describe_array));
+    m.add_function("sum_array", toy_wrap(sum_array));
+    m.add_function("make_array", toy_wrap(make_array));
+    m.add_function("print_float", toy_wrap(print_float));
 
     auto X_constructor = [](py_tuple args, py_dict kwds) -> shared_ptr<X> {
 	if ((args.size() != 1) || (kwds.size() != 0))

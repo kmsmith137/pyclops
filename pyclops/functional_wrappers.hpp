@@ -1,3 +1,5 @@
+// FIXME: the functional_wrappers could use a lot of improvement!
+
 #ifndef _PYCLOPS_FUNCTIONAL_WRAPPERS_HPP
 #define _PYCLOPS_FUNCTIONAL_WRAPPERS_HPP
 
@@ -92,6 +94,13 @@ inline std::function<py_object(py_tuple,py_dict)> toy_wrap(std::function<void(Ar
 	    cargs._vcall(f);
 	    return py_object();  // returns None
 	};
+}
+
+
+template<typename R, typename... Args>
+inline std::function<py_object(py_tuple,py_dict)> toy_wrap(R (*f)(Args...))
+{
+    return toy_wrap(std::function<R(Args...)> (f));
 }
 
 

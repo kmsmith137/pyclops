@@ -102,35 +102,6 @@ struct X {
 };
 
 
-// -------------------------------------------------------------------------------------------------=
-
-
-struct Base {
-    const string name;
-    Base(const string &name_) : name(name_) { }    
-
-    string get_name() const { return name; }
-    virtual ssize_t f(ssize_t n) = 0;
-};
-
-// Helper function for Derived constructor.
-static string _der_name(ssize_t m)
-{
-    stringstream ss;
-    ss << "Derived(" << m << ")";
-    return ss.str();
-}
-
-struct Derived : public Base {
-    const ssize_t m;
-    Derived(ssize_t m_) : Base(_der_name(m_)), m(m_) { }
-    virtual ssize_t f(ssize_t n) override { return m+n; }
-};
-
-
-// -------------------------------------------------------------------------------------------------
-
-
 // Declare X type object.
 static extension_type<X> X_type("X", "The awesome X class");
 
@@ -169,6 +140,59 @@ struct converter<shared_ptr<X>> {
 };
 
 
+// -------------------------------------------------------------------------------------------------
+
+
+
+struct Base {
+    const string name;
+    Base(const string &name_) : name(name_) { }    
+
+    string get_name() { return name; }
+    virtual ssize_t f(ssize_t n) = 0;
+};
+
+// Helper function for Derived constructor.
+static string _der_name(ssize_t m)
+{
+    stringstream ss;
+    ss << "Derived(" << m << ")";
+    return ss.str();
+}
+
+struct Derived : public Base {
+    const ssize_t m;
+    Derived(ssize_t m_) : Base(_der_name(m_)), m(m_) { }
+    virtual ssize_t f(ssize_t n) override { return m+n; }
+};
+
+
+static shared_ptr<Base> make_derived(ssize_t m)
+{
+    return make_shared<Derived> (m);
+}
+
+
+// Declare Base type object
+static extension_type<Base> Base_type("Base", "This base class has a pure virtual function.");
+
+
+template<>
+struct converter<shared_ptr<Base>> {
+    static shared_ptr<Base> from_python(const py_object &obj, const char *where=nullptr)
+    {
+	return extension_type<Base>::from_python(Base_type.tobj, obj, where);
+    }
+
+    static py_object to_python(const shared_ptr<Base> &x)
+    {
+	return extension_type<Base>::to_python(Base_type.tobj, x);
+    }
+};
+
+
+// -------------------------------------------------------------------------------------------------
+
 
 PyMODINIT_FUNC initthe_greatest_module(void)
 {
@@ -176,11 +200,20 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     extension_module m("the_greatest_module", "The greatest!");
 
+    // ----------------------------------------------------------------------
+
     m.add_function("add", toy_wrap(add));
     m.add_function("describe_array", toy_wrap(describe_array));
     m.add_function("sum_array", toy_wrap(sum_array));
     m.add_function("make_array", toy_wrap(make_array));
     m.add_function("print_float", toy_wrap(print_float));
+
+    auto get_basicsize = [](py_type t) -> ssize_t { return t.get_basicsize(); };
+
+    m.add_function("get_basicsize",
+		   toy_wrap(std::function<ssize_t(py_type)> (get_basicsize)));
+
+    // ----------------------------------------------------------------------
 
     auto X_constructor1 = [](ssize_t i) { return make_shared<X> (i); };
     auto X_constructor2 = std::function<shared_ptr<X>(ssize_t)> (X_constructor1);
@@ -210,10 +243,19 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("clone_Xp",
 		   toy_wrap(std::function<shared_ptr<X>(shared_ptr<X>)> (clone_Xp)));
 
-    auto get_basicsize = [](py_type t) -> ssize_t { return t.get_basicsize(); };
+    // ----------------------------------------------------------------------
 
-    m.add_function("get_basicsize",
-		   toy_wrap(std::function<ssize_t(py_type)> (get_basicsize)));
+    Base_type.add_method("get_name", "get the name!", toy_wrap(&Base::get_name));
+    Base_type.add_method("f", "a pure virtual function", toy_wrap(&Base::f));
+
+    // This doesn't really make sense.
+    auto dummy_cons1 = []() -> shared_ptr<Base> { return make_derived(100); };
+    auto dummy_cons2 = std::function<shared_ptr<Base>()> (dummy_cons1);
+    Base_type.add_constructor(toy_wrap_constructor(dummy_cons2));
+
+    m.add_function("make_derived", toy_wrap(make_derived));
+
+    m.add_type(Base_type);
 
     m.finalize();
 }

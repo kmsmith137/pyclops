@@ -90,12 +90,41 @@ static void print_float(double x)
 }
 
 
+// -------------------------------------------------------------------------------------------------
+
+
 struct X {
     ssize_t x;    
     X(ssize_t x_) : x(x_) { cout << "    X::X(" << x << ") " << this << endl; }
     X(const X &x_) : x(x_.x) { cout << "    X::X(" << x << ") " << this << endl; }
     ~X() { cout << "    X::~X(" << x << ") " << this << endl; }
     ssize_t get() { return x; }
+};
+
+
+// -------------------------------------------------------------------------------------------------=
+
+
+struct Base {
+    const string name;
+    Base(const string &name_) : name(name_) { }    
+
+    string get_name() const { return name; }
+    virtual ssize_t f(ssize_t n) = 0;
+};
+
+// Helper function for Derived constructor.
+static string _der_name(ssize_t m)
+{
+    stringstream ss;
+    ss << "Derived(" << m << ")";
+    return ss.str();
+}
+
+struct Derived : public Base {
+    const ssize_t m;
+    Derived(ssize_t m_) : Base(_der_name(m_)), m(m_) { }
+    virtual ssize_t f(ssize_t n) override { return m+n; }
 };
 
 

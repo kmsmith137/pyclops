@@ -170,9 +170,9 @@ struct Derived : public Base {
 struct PyBase : public Base {
     py_weakref weakref;
 
-    PyBase(const py_object &obj, const string &name) : 
+    PyBase(const py_object &self, const string &name) : 
 	Base(name),
-	weakref(py_weakref::make(obj))
+	weakref(py_weakref::make(self))
     { }
 
     virtual ssize_t f(ssize_t n) override
@@ -283,14 +283,14 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_method("get_name", "get the name!", toy_wrap(&Base::get_name));
     Base_type.add_method("f", "a pure virtual function", toy_wrap(&Base::f));
 
-    // This doesn't really make sense.
-    auto dummy_cons1 = [](py_object self) -> shared_ptr<Base> { return make_derived(100); };
-    auto dummy_cons2 = std::function<shared_ptr<Base>(py_object)> (dummy_cons1);
-    Base_type.add_constructor(toy_wrap_constructor(dummy_cons2));
-
-    m.add_function("make_derived", toy_wrap(make_derived));
+    // This python constructor allows a python subclass to override the pure virtual function f().
+    auto Base_constructor1 = [](py_object self, string name) -> shared_ptr<Base> { return make_shared<PyBase> (self, name); };
+    auto Base_constructor2 = std::function<shared_ptr<Base>(py_object,string)> (Base_constructor1);
+    Base_type.add_constructor(toy_wrap_constructor(Base_constructor2));
 
     m.add_type(Base_type);
+
+    m.add_function("make_derived", toy_wrap(make_derived));
 
     m.finalize();
 }

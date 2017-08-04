@@ -5,10 +5,7 @@
 #include <vector>
 #include <functional>
 
-#include "py_object.hpp"
-#include "py_tuple.hpp"
-#include "py_dict.hpp"
-
+#include "core.hpp"
 #include "extension_type.hpp"
 
 namespace pyclops {

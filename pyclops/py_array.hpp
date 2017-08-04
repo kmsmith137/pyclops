@@ -2,7 +2,7 @@
 #define _PYCLOPS_ARRAY_HPP
 
 #include <mcpp_arrays.hpp>
-#include "py_object.hpp"
+#include "core.hpp"
 
 
 namespace pyclops {

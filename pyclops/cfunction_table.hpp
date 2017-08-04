@@ -4,9 +4,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "py_object.hpp"
-#include "py_tuple.hpp"
-#include "py_dict.hpp"
+#include "core.hpp"
 
 namespace pyclops {
 #if 0

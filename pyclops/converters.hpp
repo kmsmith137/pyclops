@@ -4,9 +4,7 @@
 #include <vector>
 #include <mcpp_arrays.hpp>
 
-#include "py_object.hpp"
-#include "py_tuple.hpp"
-#include "py_dict.hpp"
+#include "core.hpp"
 #include "py_array.hpp"
 #include "py_type.hpp"
 

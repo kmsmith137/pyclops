@@ -1,10 +1,7 @@
 #ifndef _PYCLOPS_EXTENSION_TYPE_HPP
 #define _PYCLOPS_EXTENSION_TYPE_HPP
 
-#include "py_object.hpp"
-#include "py_tuple.hpp"
-#include "py_dict.hpp"
-
+#include "core.hpp"
 #include "cfunction_table.hpp"
 
 namespace pyclops {

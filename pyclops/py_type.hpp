@@ -1,7 +1,7 @@
 #ifndef _PYCLOPS_TYPE_HPP
 #define _PYCLOPS_TYPE_HPP
 
-#include "py_object.hpp"
+#include "core.hpp"
 
 namespace pyclops {
 #if 0

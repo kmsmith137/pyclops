@@ -11,9 +11,7 @@
 
 
 INCFILES = pyclops.hpp \
-  pyclops/py_object.hpp \
-  pyclops/py_tuple.hpp \
-  pyclops/py_dict.hpp \
+  pyclops/core.hpp \
   pyclops/py_array.hpp \
   pyclops/py_type.hpp \
   pyclops/py_weakref.hpp \

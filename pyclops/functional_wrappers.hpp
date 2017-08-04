@@ -7,10 +7,7 @@
 #ifndef _PYCLOPS_FUNCTIONAL_WRAPPERS_HPP
 #define _PYCLOPS_FUNCTIONAL_WRAPPERS_HPP
 
-#include "py_object.hpp"
-#include "py_tuple.hpp"
-#include "py_dict.hpp"
-#include "converters.hpp"
+#include "core.hpp"
 
 namespace pyclops {
 #if 0

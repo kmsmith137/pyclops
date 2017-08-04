@@ -1,6 +1,7 @@
 #ifndef _PYCLOPS_CORE_HPP
 #define _PYCLOPS_CORE_HPP
 
+#include <memory>
 #include <iostream>
 #include <stdexcept>
 

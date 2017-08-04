@@ -34,13 +34,8 @@ struct py_tuple : public py_object {
     template<typename... Args>
     static inline py_tuple make(Args... args);
 
-    inline void _check(const char *where=NULL)
-    {
-	if (!PyTuple_Check(this->ptr))
-	    _throw(where);
-    }
-
-    static void _throw(const char *where);
+    inline void _check(const char *where=NULL);
+    static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
 };
 
 
@@ -79,6 +74,11 @@ inline py_tuple &py_tuple::operator=(py_object &&x)
     return *this;
 }
 
+inline void py_tuple::_check(const char *where)
+{
+    if (!PyTuple_Check(this->ptr))
+	_throw(where);
+}
 
 inline py_object py_tuple::get_item(ssize_t pos) const
 {

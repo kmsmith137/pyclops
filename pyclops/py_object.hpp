@@ -36,14 +36,15 @@ struct py_object {
     // Note: instead of using this constructor...
     py_object(PyObject *x, bool increment_refcount);
     
-    // ...I prefer to use these factory functions.
+    // ...I prefer to use these constructor-like functions.
     static py_object borrowed_reference(PyObject *x) { return py_object(x, true); }  // increment refcount
     static py_object new_reference(PyObject *x) { return py_object(x, false); }      // don't increment refcount
 
-    inline ssize_t get_refcount() const { return Py_REFCNT(ptr); }
+    inline bool is_none() const { return ptr == Py_None; }
     inline bool is_tuple() const { return PyTuple_Check(ptr); }
     inline bool is_dict() const { return PyDict_Check(ptr); }
     inline bool is_array() const { return PyArray_Check(ptr); }
+    inline ssize_t get_refcount() const { return Py_REFCNT(ptr); }
 
     // Note: to further convert to a C++ string, wrap return value in "from_python<std::string> ()".
     py_object str() const  { return py_object::new_reference(PyObject_Str(ptr)); }

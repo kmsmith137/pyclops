@@ -26,13 +26,8 @@ struct py_type : public py_object {
     inline PyTypeObject *tptr() const { return (PyTypeObject *) ptr; }
     inline ssize_t get_basicsize() const { return tptr()->tp_basicsize; }
 
-    inline void _check(const char *where=NULL)
-    {
-	if (!PyType_Check(this->ptr))
-	    _throw(where);
-    }
-
-    static void _throw(const char *where);
+    inline void _check(const char *where=NULL);
+    static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
 };
 
 
@@ -69,6 +64,12 @@ inline py_type &py_type::operator=(py_object &&x)
     x.ptr = NULL;
     this->_check();
     return *this;
+}
+
+inline void py_type::_check(const char *where)
+{
+    if (!PyType_Check(this->ptr))
+	_throw(where);
 }
 
 

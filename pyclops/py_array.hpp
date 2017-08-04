@@ -71,13 +71,8 @@ struct py_array : public py_object {
 	return (*this);
     }
 
-    inline void _check(const char *loc=NULL)
-    {
-	if (!PyArray_Check(this->ptr))
-	    _throw(loc);
-    }
-
-    static void _throw(const char *loc);
+    inline void _check(const char *loc=NULL);
+    static void _throw(const char *loc);  // non-inline, defined in exceptions.cpp
 };
 
 
@@ -125,6 +120,12 @@ inline py_array &py_array::operator=(py_object &&x)
     x.ptr = NULL;
     this->_check();
     return *this;
+}
+
+inline void py_array::_check(const char *loc)
+{
+    if (!PyArray_Check(this->ptr))
+	_throw(loc);
 }
 
 

@@ -24,13 +24,8 @@ struct py_dict : public py_object {
 
     ssize_t size() const { return PyDict_Size(ptr); }
 
-    inline void _check(const char *where=NULL)
-    {
-	if (!PyDict_Check(this->ptr))
-	    _throw(where);
-    }
-
-    static void _throw(const char *where);
+    inline void _check(const char *where=NULL);
+    static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
 };
 
 
@@ -71,6 +66,12 @@ inline py_dict &py_dict::operator=(py_object &&x)
     x.ptr = NULL;
     this->_check();
     return *this;
+}
+
+inline void py_dict::_check(const char *where)
+{
+    if (!PyDict_Check(this->ptr))
+	_throw(where);
 }
 
 

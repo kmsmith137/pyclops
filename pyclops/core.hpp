@@ -18,6 +18,10 @@ namespace pyclops {
 // See pyclops/converters.hpp.
 template<typename T> struct converter;
 
+// Forward declarations needed below.
+struct py_tuple;
+struct py_dict;
+
 
 // -------------------------------------------------------------------------------------------------
 //
@@ -50,6 +54,10 @@ struct py_object {
     inline bool is_array() const { return PyArray_Check(ptr); }
     inline bool is_callable() const { return PyCallable_Check(ptr); }
     inline ssize_t get_refcount() const { return Py_REFCNT(ptr); }
+
+    // These are safe to call without checking is_callable().
+    py_object call(const py_tuple &args);
+    py_object call(const py_tuple &args, const py_dict &kwds);
 
     // Note: to further convert to a C++ string, wrap return value in "from_python<std::string> ()".
     py_object str() const  { return py_object::new_reference(PyObject_Str(ptr)); }
@@ -174,6 +182,18 @@ inline py_object &py_object::operator=(py_object &&x)
     return *this; 
 }
 
+// Note: PyObject_Call() is always fastest, if args/kwds are known to be a tuple/dict.
+inline py_object py_object::call(const py_tuple &args)
+{
+    PyObject *p = PyObject_Call(ptr, args.ptr, NULL);
+    return new_reference(p);
+}
+
+inline py_object py_object::call(const py_tuple &args, const py_dict &kwds)
+{
+    PyObject *p = PyObject_Call(ptr, args.ptr, kwds.ptr);
+    return new_reference(p);
+}
 
 inline std::ostream &operator<<(std::ostream &os, const py_object &x)
 {

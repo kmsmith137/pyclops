@@ -10,6 +10,12 @@ namespace pyclops {
 #endif
 
 
+enum obj_kind {
+    OBJ_UNINITIALIZED = 0,    // must be zero!  embedded shared_ptr<T> has not been constructed.
+    OBJ_NON_PERSISTENT = 1,   // tp_dealloc() is responsible for deleting hash table entry, freeing object.
+    OBJ_PERSISTENT = 2        // C++ destructor is responsible for deleting hash table entry, freeing object.
+};
+
 
 template<typename T>
 struct class_wrapper {
@@ -31,7 +37,7 @@ struct class_wrapper {
     // (but not explicitly constructed) shared_ptr<> is a well-formed empty pointer.
     // If so, then the 'initialized' flag isn't necessary!
 
-    int initialized = 0;
+    obj_kind kind = OBJ_UNINITIALIZED;
 
     // Note: constructed with "placement new" (see add_constructor() and to_python() below), 
     // and destroyed with direct call to shared_ptr<T> destructor (see tp_dealloc() below).
@@ -107,7 +113,7 @@ inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> 
 	    throw std::runtime_error(std::string(type->tp_name) + ": 'self' argument to __init__() does not have expected type?!");
 
 	class_wrapper<T> *wp = reinterpret_cast<class_wrapper<T> *> (self.ptr);
-	if (wp->initialized)
+	if (wp->kind != OBJ_UNINITIALIZED)
 	    throw std::runtime_error(std::string(type->tp_name) + ": double call to __init__()?!");
 
 	std::shared_ptr<T> tp = f(self, args, kwds);
@@ -115,7 +121,7 @@ inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> 
 	    throw std::runtime_error(std::string(type->tp_name) + ": constructor function returned null pointer?!");
 
 	// class_wrapper<T>::ptr is constructed here, with "placement new".
-	wp->initialized = 1;
+	wp->kind = OBJ_NON_PERSISTENT;
 	new(&wp->ptr) std::shared_ptr<T> (tp);
     };
 
@@ -174,7 +180,7 @@ inline std::shared_ptr<T> extension_type<T>::from_python(PyTypeObject *tobj, con
 	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected object of type " + tobj->tp_name);
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
-    if (!wp->initialized)
+    if (wp->kind == OBJ_UNINITIALIZED)
 	throw std::runtime_error(std::string(where ? where : "pyclops") + ": " + tobj->tp_name + ".__init__() was never called?!");
 
     return wp->ptr;
@@ -191,7 +197,7 @@ inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::sha
     // class_wrapper<T>::ptr is constructed here, with "placement new".
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj);
     new(&wp->ptr) std::shared_ptr<T> (x);
-    wp->initialized = 1;
+    wp->kind = OBJ_NON_PERSISTENT;
 
     return py_object::new_reference(obj);
 }
@@ -205,12 +211,12 @@ inline void extension_type<T>::tp_dealloc(PyObject *self)
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (self);
 
-    if (!wp->initialized)
+    if (wp->kind == OBJ_UNINITIALIZED)
 	return;
 
     // class_wrapper<T>::ptr is destroyed here, with direct destructor call.
     wp->ptr.~shared_ptr();
-    wp->initialized = 0;
+    wp->kind = OBJ_UNINITIALIZED;
 }
 
 

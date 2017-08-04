@@ -22,7 +22,7 @@ namespace pyclops {
 
 extern PyCFunction make_kwargs_cfunction(std::function<py_object(py_tuple,py_dict)> f);
 extern PyCFunction make_kwargs_cmethod(std::function<py_object(py_object,py_tuple,py_dict)> f);
-extern newfunc make_kwargs_newfunc(std::function<PyObject* (PyTypeObject *, py_tuple, py_dict)> f);
+extern initproc make_kwargs_initproc(std::function<void(py_object, py_tuple, py_dict)> f);
 
 
 }  // namespace pyclops

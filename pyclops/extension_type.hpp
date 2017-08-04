@@ -13,12 +13,31 @@ namespace pyclops {
 #endif
 
 
+
 template<typename T>
 struct class_wrapper {
     PyObject_HEAD
 
-    // Note: constructed with "placement new" (in add_constructor() and to_python() below), 
-    // and destroyed with direct call to shared_ptr<T> destructor (in tp_dealloc() below).
+    // The 'initialized' flag exists in order to detect the case where tp_init()
+    // never gets called (say, because the C++ extension class is subclassed in
+    // python, and the subclass __init__() forgets to call the base class __init__()).
+    //
+    // In this case, the fields below should still be zeroed, since the object
+    // should be allocated by PyType_GenericAlloc(), which zeroes the allocated
+    // memory (in addition to initializing ob_refcount and ob_type).  
+    //
+    // Therefore, the 'initialized' flag is zero if tp_init() never gets called.
+    // In tp_init(), we set it to 1 (see below).  This gives us a mechanism for 
+    // detecting whether tp_init() is called, as desired.
+    //
+    // Note: I wasn't sure whether it was safe to assume that a binary-zeroed
+    // (but not explicitly constructed) shared_ptr<> is a well-formed empty pointer.
+    // If so, then the 'initialized' flag isn't necessary!
+
+    int initialized = 0;
+
+    // Note: constructed with "placement new" (see add_constructor() and to_python() below), 
+    // and destroyed with direct call to shared_ptr<T> destructor (see tp_dealloc() below).
     std::shared_ptr<T> ptr;
 };
 
@@ -71,6 +90,7 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
     tobj->tp_doc = strdup(docstring.c_str());
     tobj->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
     tobj->tp_basicsize = sizeof(class_wrapper<T>);
+    tobj->tp_new = PyType_GenericNew;
     tobj->tp_dealloc = extension_type<T>::tp_dealloc;
 }
 
@@ -80,27 +100,30 @@ inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> 
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was called after finalize()");
-    if (tobj->tp_new)
+    if (tobj->tp_init)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::add_constructor()");
 
-    auto g = [f](PyTypeObject *type, py_tuple args, py_dict kwds) -> PyObject* {
+    PyTypeObject *type = this->tobj;
+
+    auto g = [f,type](py_object self, py_tuple args, py_dict kwds) -> void {
+	if (!PyObject_IsInstance(self.ptr, (PyObject *)type))
+	    throw std::runtime_error(std::string(type->tp_name) + ": 'self' argument to __init__() does not have expected type?!");
+
+	class_wrapper<T> *wp = reinterpret_cast<class_wrapper<T> *> (self.ptr);
+	if (wp->initialized)
+	    throw std::runtime_error(std::string(type->tp_name) + ": double call to __init__()?!");
+
 	std::shared_ptr<T> tp = f(args, kwds);
 	if (!tp)
-	    throw std::runtime_error(std::string(type->tp_name) + ": constructor returned null pointer?!");
-
-	PyObject *ret = type->tp_alloc(type, 0);
-	if (!ret)
-	    throw pyerr_occurred();
+	    throw std::runtime_error(std::string(type->tp_name) + ": constructor function returned null pointer?!");
 
 	// class_wrapper<T>::ptr is constructed here, with "placement new".
-	class_wrapper<T> *wp = reinterpret_cast<class_wrapper<T> *> (ret);	
+	wp->initialized = 1;
 	new(&wp->ptr) std::shared_ptr<T> (tp);
-
-	return ret;
     };
 
     // Convert std::function to C-style function pointer.
-    tobj->tp_new = make_kwargs_newfunc(g);
+    tobj->tp_init = make_kwargs_initproc(g);
 }
 
 
@@ -131,7 +154,7 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
 template<typename T>
 inline void extension_type<T>::finalize()
 {
-    if (!tobj->tp_new)
+    if (!tobj->tp_init)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was never called");
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::finalize()");
@@ -150,13 +173,13 @@ inline void extension_type<T>::finalize()
 template<typename T>
 inline std::shared_ptr<T> extension_type<T>::from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
 {
-    if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj)) {
-	throw std::runtime_error(std::string(where ? where : "pyclops") 
-				 + ": couldn't convert python object to type " 
-				 + tobj->tp_name);
-    }
+    if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj))
+	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected object of type " + tobj->tp_name);
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
+    if (!wp->initialized)
+	throw std::runtime_error(std::string(where ? where : "pyclops") + ": " + tobj->tp_name + ".__init__() was never called?!");
+
     return wp->ptr;
 }
 
@@ -171,6 +194,7 @@ inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::sha
     // class_wrapper<T>::ptr is constructed here, with "placement new".
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj);
     new(&wp->ptr) std::shared_ptr<T> (x);
+    wp->initialized = 1;
 
     return py_object::new_reference(obj);
 }
@@ -184,12 +208,13 @@ inline void extension_type<T>::tp_dealloc(PyObject *self)
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (self);
 
-    // Should be unnecessary, but I'm paranoid.
-    wp->ptr.reset();
+    if (!wp->initialized)
+	return;
 
     // class_wrapper<T>::ptr is destroyed here, with direct destructor call.
     // I wonder if this is also unnecessary, now that the shared_ptr has been reset!
     wp->ptr.~shared_ptr();
+    wp->initialized = 0;
 }
 
 

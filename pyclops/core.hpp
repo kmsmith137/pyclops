@@ -53,7 +53,7 @@ struct py_object {
     inline bool is_dict() const { return PyDict_Check(ptr); }
     inline bool is_array() const { return PyArray_Check(ptr); }
     inline bool is_callable() const { return PyCallable_Check(ptr); }
-    inline ssize_t get_refcount() const { return Py_REFCNT(ptr); }
+    inline ssize_t get_refcount() const { return ptr->ob_refcnt; }
 
     // These are safe to call without checking is_callable().
     py_object call(const py_tuple &args);
@@ -162,6 +162,8 @@ inline py_object::py_object(PyObject *x, bool increment_refcount) :
 {
     if (!x)
 	throw pyerr_occurred();
+    if (x->ob_refcnt <= 0)
+	throw std::runtime_error("pyclops internal error: py_object constructor invoked on object with refcount <= 0");
     if (increment_refcount)
 	Py_INCREF(x);
 }

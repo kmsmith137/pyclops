@@ -250,8 +250,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     // ----------------------------------------------------------------------
 
-    auto X_constructor1 = [](ssize_t i) { return make_shared<X> (i); };
-    auto X_constructor2 = std::function<shared_ptr<X>(ssize_t)> (X_constructor1);
+    auto X_constructor1 = [](py_object self, ssize_t i) { return make_shared<X> (i); };
+    auto X_constructor2 = std::function<shared_ptr<X>(py_object,ssize_t)> (X_constructor1);
 
     X_type.add_constructor(toy_wrap_constructor(X_constructor2));
     X_type.add_method("get", "get!", toy_wrap(&X::get));
@@ -284,8 +284,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_method("f", "a pure virtual function", toy_wrap(&Base::f));
 
     // This doesn't really make sense.
-    auto dummy_cons1 = []() -> shared_ptr<Base> { return make_derived(100); };
-    auto dummy_cons2 = std::function<shared_ptr<Base>()> (dummy_cons1);
+    auto dummy_cons1 = [](py_object self) -> shared_ptr<Base> { return make_derived(100); };
+    auto dummy_cons2 = std::function<shared_ptr<Base>(py_object)> (dummy_cons1);
     Base_type.add_constructor(toy_wrap_constructor(dummy_cons2));
 
     m.add_function("make_derived", toy_wrap(make_derived));

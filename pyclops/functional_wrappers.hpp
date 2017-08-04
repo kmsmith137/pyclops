@@ -145,7 +145,7 @@ inline std::function<py_object(C*, py_tuple, py_dict)> toy_wrap(R (C::*f)(Args..
 
 // Wrap constructor
 template<class C, typename... Args>
-inline std::function<std::shared_ptr<C>(py_object,py_tuple,py_dict)> toy_wrap_constructor(std::function<std::shared_ptr<C>(Args...)> f)
+inline std::function<std::shared_ptr<C>(py_object,py_tuple,py_dict)> toy_wrap_constructor(std::function<std::shared_ptr<C>(py_object,Args...)> f)
 {
     return [f](py_object self, py_tuple args, py_dict kwds) -> std::shared_ptr<C>
 	{
@@ -153,7 +153,7 @@ inline std::function<std::shared_ptr<C>(py_object,py_tuple,py_dict)> toy_wrap_co
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
 	    _func_context<std::shared_ptr<C>,Args...> cargs(args);
-	    return cargs._rcall(f);
+	    return cargs._rcall(f, self);
 	};
 }
 

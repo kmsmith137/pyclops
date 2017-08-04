@@ -43,7 +43,7 @@ template<typename T>
 struct extension_type {
     extension_type(const std::string &name, const std::string &docstring="");
 
-    inline void add_constructor(std::function<std::shared_ptr<T> (py_tuple,py_dict)> f);
+    inline void add_constructor(std::function<std::shared_ptr<T> (py_object,py_tuple,py_dict)> f);
 
     // FIXME: decide whether the "self" argument of the C++ method should be (T *),
     // as currently assumed, or shared_ptr<T>.
@@ -93,7 +93,7 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
 
 
 template<typename T>
-inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> (py_tuple, py_dict)> f)
+inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> (py_object, py_tuple, py_dict)> f)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was called after finalize()");
@@ -110,7 +110,7 @@ inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> 
 	if (wp->initialized)
 	    throw std::runtime_error(std::string(type->tp_name) + ": double call to __init__()?!");
 
-	std::shared_ptr<T> tp = f(args, kwds);
+	std::shared_ptr<T> tp = f(self, args, kwds);
 	if (!tp)
 	    throw std::runtime_error(std::string(type->tp_name) + ": constructor function returned null pointer?!");
 

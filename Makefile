@@ -16,6 +16,7 @@ INCFILES = pyclops.hpp \
   pyclops/py_dict.hpp \
   pyclops/py_array.hpp \
   pyclops/py_type.hpp \
+  pyclops/py_weakref.hpp \
   pyclops/converters.hpp \
   pyclops/cfunction_table.hpp \
   pyclops/extension_type.hpp \

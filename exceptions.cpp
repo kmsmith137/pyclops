@@ -37,6 +37,13 @@ void py_type::_throw(const char *where)
     throw runtime_error(string(where) + ": object was not a type object as expected");
 }
 
+void py_weakref::_throw(const char *where)
+{
+    if (!where)
+	where = "pyclops: internal error";
+    throw runtime_error(string(where) + ": object was not a weakref object as expected");
+}
+
 
 // -------------------------------------------------------------------------------------------------
 

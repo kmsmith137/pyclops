@@ -51,6 +51,10 @@ struct py_object {
 };
 
 
+// See pyclops/converters.hpp.
+template<typename T> struct converter;
+
+
 inline std::ostream &operator<<(std::ostream &os, const py_object &x);
 
 

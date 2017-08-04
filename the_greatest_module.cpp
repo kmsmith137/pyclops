@@ -209,9 +209,14 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("print_float", toy_wrap(print_float));
 
     auto get_basicsize = [](py_type t) -> ssize_t { return t.get_basicsize(); };
+    auto make_tuple = []() -> py_tuple { return py_tuple::make(ssize_t(2), 3.5, string("hi")); };
 
     m.add_function("get_basicsize",
 		   toy_wrap(std::function<ssize_t(py_type)> (get_basicsize)));
+
+    m.add_function("make_tuple",
+		   toy_wrap(std::function<py_tuple()> (make_tuple)));
+
 
     // ----------------------------------------------------------------------
 

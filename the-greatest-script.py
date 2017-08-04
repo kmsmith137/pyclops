@@ -17,6 +17,10 @@ a = the_greatest_module.make_array((2,3,4))
 print 'Output of make_array() follows'
 print a
 
+t = the_greatest_module.make_tuple()
+print 'Output of make_tuple() follows'
+print t
+
 print
 print 'Calling X()'
 x = the_greatest_module.X(23)

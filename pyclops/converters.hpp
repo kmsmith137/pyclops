@@ -25,9 +25,8 @@ namespace pyclops {
 // };
 //
 // FIXME: this API can probably be improved!
-
-
-template<typename T> struct converter;
+//
+// Reminder: the primary template converter<T> is declared in pyclops/py_object.hpp.
 
 
 // -------------------------------------------------------------------------------------------------

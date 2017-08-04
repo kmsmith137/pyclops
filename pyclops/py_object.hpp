@@ -44,6 +44,7 @@ struct py_object {
     inline bool is_tuple() const { return PyTuple_Check(ptr); }
     inline bool is_dict() const { return PyDict_Check(ptr); }
     inline bool is_array() const { return PyArray_Check(ptr); }
+    inline bool is_callable() const { return PyCallable_Check(ptr); }
     inline ssize_t get_refcount() const { return Py_REFCNT(ptr); }
 
     // Note: to further convert to a C++ string, wrap return value in "from_python<std::string> ()".
@@ -118,6 +119,7 @@ inline py_object &py_object::operator=(py_object &&x)
     x.ptr = NULL;
     return *this; 
 }
+
 
 inline std::ostream &operator<<(std::ostream &os, const py_object &x)
 {

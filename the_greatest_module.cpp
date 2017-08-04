@@ -148,8 +148,10 @@ struct Base {
     const string name;
     Base(const string &name_) : name(name_) { }    
 
-    string get_name() { return name; }
     virtual ssize_t f(ssize_t n) = 0;
+
+    string get_name() { return name; }
+    ssize_t f_cpp(ssize_t n) { return f(n); }   // Forces call to f() to go through C++ code
 };
 
 // Helper function for Derived constructor.
@@ -177,6 +179,7 @@ struct PyBase : public Base {
 
     virtual ssize_t f(ssize_t n) override
     {
+	cout << "    PyBase::f() called" << endl;
 	// return call_method<ssize_t> ("f", n);
 
 	py_object obj = weakref.dereference();
@@ -219,6 +222,13 @@ struct converter<shared_ptr<Base>> {
 	return extension_type<Base>::to_python(Base_type.tobj, x);
     }
 };
+
+
+static shared_ptr<Base> g_Base;
+
+static void set_global_Base(shared_ptr<Base> b) { g_Base = b; }
+static void clear_global_Base() { g_Base.reset(); }
+static ssize_t f_global_Base(ssize_t n) { return g_Base ? g_Base->f(n) : 0; }
 
 
 // -------------------------------------------------------------------------------------------------
@@ -282,6 +292,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     Base_type.add_method("get_name", "get the name!", toy_wrap(&Base::get_name));
     Base_type.add_method("f", "a pure virtual function", toy_wrap(&Base::f));
+    Base_type.add_method("f_cpp", "forces call to f() to go through C++", toy_wrap(&Base::f_cpp));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
     auto Base_constructor1 = [](py_object self, string name) -> shared_ptr<Base> { return make_shared<PyBase> (self, name); };
@@ -291,6 +302,9 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_type(Base_type);
 
     m.add_function("make_derived", toy_wrap(make_derived));
+    m.add_function("set_global_Base", toy_wrap(set_global_Base));
+    m.add_function("clear_global_Base", toy_wrap(clear_global_Base));
+    m.add_function("f_global_Base", toy_wrap(f_global_Base));
 
     m.finalize();
 }

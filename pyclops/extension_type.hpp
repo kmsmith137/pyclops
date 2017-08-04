@@ -212,7 +212,6 @@ inline void extension_type<T>::tp_dealloc(PyObject *self)
 	return;
 
     // class_wrapper<T>::ptr is destroyed here, with direct destructor call.
-    // I wonder if this is also unnecessary, now that the shared_ptr has been reset!
     wp->ptr.~shared_ptr();
     wp->initialized = 0;
 }

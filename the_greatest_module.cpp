@@ -168,6 +168,7 @@ struct Derived : public Base {
     virtual ssize_t f(ssize_t n) override { return m+n; }
 };
 
+
 // Represents a Base which has been subclassed from python.
 struct PyBase : public Base {
     py_weakref weakref;
@@ -291,8 +292,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     // ----------------------------------------------------------------------
 
     Base_type.add_method("get_name", "get the name!", toy_wrap(&Base::get_name));
-    Base_type.add_method("f", "a pure virtual function", toy_wrap(&Base::f));
     Base_type.add_method("f_cpp", "forces call to f() to go through C++", toy_wrap(&Base::f_cpp));
+    Base_type.add_pure_virtual("f", "a pure virtual function", toy_wrap(&Base::f));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
     auto Base_constructor1 = [](py_object self, string name) { return new PyBase(self, name); };

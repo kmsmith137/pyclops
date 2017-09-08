@@ -12,6 +12,7 @@ namespace pyclops {
 static constexpr int max_kwargs_cfunctions = 20;
 static constexpr int max_kwargs_cmethods = 50;
 static constexpr int max_kwargs_initprocs = 20;
+static constexpr int max_getters = 50;
 
 
 // -------------------------------------------------------------------------------------------------
@@ -60,10 +61,10 @@ static PyObject *kwargs_cfunction_body(PyObject *self, PyObject *args, PyObject 
 
 
 template<int N, typename std::enable_if<(N==0),int>::type = 0>
-void initialize_kwargs_cfunctions() { }
+inline void initialize_kwargs_cfunctions() { }
 
 template<int N, typename std::enable_if<(N>0),int>::type = 0>
-void initialize_kwargs_cfunctions()
+inline void initialize_kwargs_cfunctions()
 {
     initialize_kwargs_cfunctions<N-1>();    
     kwargs_cfunctions[N-1].c_func = kwargs_cfunction_body<N-1>;
@@ -127,10 +128,10 @@ static PyObject *kwargs_cmethod_body(PyObject *self, PyObject *args, PyObject *k
 
 
 template<int N, typename std::enable_if<(N==0),int>::type = 0>
-void initialize_kwargs_cmethods() { }
+inline void initialize_kwargs_cmethods() { }
 
 template<int N, typename std::enable_if<(N>0),int>::type = 0>
-void initialize_kwargs_cmethods()
+inline void initialize_kwargs_cmethods()
 {
     initialize_kwargs_cmethods<N-1>();    
     kwargs_cmethods[N-1].c_func = kwargs_cmethod_body<N-1>;
@@ -194,10 +195,10 @@ static int kwargs_initproc_body(PyObject *type, PyObject *args, PyObject *kwds)
 
 
 template<int N, typename std::enable_if<(N==0),int>::type = 0>
-void initialize_kwargs_initprocs() { }
+inline void initialize_kwargs_initprocs() { }
 
 template<int N, typename std::enable_if<(N>0),int>::type = 0>
-void initialize_kwargs_initprocs()
+inline void initialize_kwargs_initprocs()
 {
     initialize_kwargs_initprocs<N-1>();    
     kwargs_initprocs[N-1].c_func = kwargs_initproc_body<N-1>;
@@ -215,6 +216,71 @@ initproc make_kwargs_initproc(std::function<void (py_object, py_tuple, py_dict)>
 
 
 // -------------------------------------------------------------------------------------------------
+//
+// getter
+//
+// Input:    std::function<py_object(py_object)>
+// Output:   PyObject* (*)(PyObject *, void *)
+
+
+struct getter_table_entry {
+    std::function<py_object(py_object)> cpp_func;
+    PyObject * (*c_func)(PyObject *, void *);
+};
+
+static vector<getter_table_entry> getter_table(max_getters);
+static int num_getters = 0;
+
+
+// non-inline
+PyObject *_getter_body(PyObject *self, void *closure, int N)
+{
+    try {
+	py_object s = py_object::borrowed_reference(self);
+	py_object r = getter_table[N].cpp_func(s);
+
+	PyObject *ret = r.ptr;
+	r.ptr = NULL;  // steal reference
+	return ret;
+    }
+    catch (std::exception &e) {
+	set_python_error(e);
+	return NULL;
+    } catch (...) {
+	PyErr_SetString(PyExc_RuntimeError, "C++ exception was thrown, but not a subclass of std::exception");
+	return NULL;
+    }
+}
+
+template<int N>
+static PyObject *getter_body(PyObject *self, void *closure)
+{
+    return _getter_body(self, closure, N);
+}
+
+
+template<int N, typename std::enable_if<(N==0),int>::type = 0>
+inline void initialize_getters() { }
+
+template<int N, typename std::enable_if<(N>0),int>::type = 0>
+inline void initialize_getters()
+{
+    initialize_getters<N-1>();    
+    getter_table[N-1].c_func = getter_body<N-1>;
+}
+
+
+getter make_getter(std::function<py_object(py_object)> f)
+{
+    if (num_getters >= max_getters)
+	throw runtime_error("pyclops: cfunction_table is full!");
+
+    getter_table[num_getters].cpp_func = f;
+    return getter_table[num_getters++].c_func;
+}
+
+
+// -------------------------------------------------------------------------------------------------
 
 
 namespace {
@@ -224,6 +290,7 @@ namespace {
 	    initialize_kwargs_cfunctions<max_kwargs_cfunctions> ();
 	    initialize_kwargs_cmethods<max_kwargs_cmethods> ();
 	    initialize_kwargs_initprocs<max_kwargs_initprocs> ();
+	    initialize_getters<max_getters> ();
 	}
     } _ini;
 }

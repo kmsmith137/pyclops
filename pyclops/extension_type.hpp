@@ -10,46 +10,16 @@ namespace pyclops {
 #endif
 
 
-enum obj_kind {
-    OBJ_UNINITIALIZED = 0,    // must be zero!  embedded shared_ptr<T> has not been constructed.
-    OBJ_NON_PERSISTENT = 1,   // tp_dealloc() is responsible for deleting hash table entry, freeing object.
-    OBJ_PERSISTENT = 2        // C++ destructor is responsible for deleting hash table entry, freeing object.
-};
-
-
-template<typename T>
-struct class_wrapper {
-    PyObject_HEAD
-
-    // The 'initialized' flag exists in order to detect the case where tp_init()
-    // never gets called (say, because the C++ extension class is subclassed in
-    // python, and the subclass __init__() forgets to call the base class __init__()).
-    //
-    // In this case, the fields below should still be zeroed, since the object
-    // should be allocated by PyType_GenericAlloc(), which zeroes the allocated
-    // memory (in addition to initializing ob_refcount and ob_type).  
-    //
-    // Therefore, the 'initialized' flag is zero if tp_init() never gets called.
-    // In tp_init(), we set it to 1 (see below).  This gives us a mechanism for 
-    // detecting whether tp_init() is called, as desired.
-    //
-    // Note: I wasn't sure whether it was safe to assume that a binary-zeroed
-    // (but not explicitly constructed) shared_ptr<> is a well-formed empty pointer.
-    // If so, then the 'initialized' flag isn't necessary!
-
-    obj_kind kind = OBJ_UNINITIALIZED;
-
-    // Note: constructed with "placement new" (see add_constructor() and to_python() below), 
-    // and destroyed with direct call to shared_ptr<T> destructor (see tp_dealloc() below).
-    std::shared_ptr<T> ptr;
-};
+// -------------------------------------------------------------------------------------------------
+//
+// Externally visible extension_type.
 
 
 template<typename T>
 struct extension_type {
     extension_type(const std::string &name, const std::string &docstring="");
 
-    inline void add_constructor(std::function<std::shared_ptr<T> (py_object,py_tuple,py_dict)> f);
+    inline void add_constructor(std::function<T* (py_object,py_tuple,py_dict)> f);
 
     // FIXME: decide whether the "self" argument of the C++ method should be (T *),
     // as currently assumed, or shared_ptr<T>.
@@ -59,8 +29,11 @@ struct extension_type {
 
     inline void finalize();
 
-    static inline std::shared_ptr<T> from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
+    // These guys are intended to be wrapped by converters.
     static inline py_object to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x);
+    static inline T *bare_pointer_from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
+    static inline std::shared_ptr<T> shared_ptr_from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
+
     static inline void tp_dealloc(PyObject *self);
 
     PyTypeObject *tobj = nullptr;
@@ -75,6 +48,74 @@ struct extension_type {
 // -------------------------------------------------------------------------------------------------
 //
 // Implementation.
+
+
+// The class_wrapper<T> type is used "under the hood" to embed the shared_ptr<T> in a PyObject.
+// Members of class_wrapper<T> are only accessed by extension_type<T> (in this source file).
+
+
+template<typename T>
+struct class_wrapper {
+    PyObject_HEAD
+
+    // The 'p' pointer can be NULL, in the corner case where tp_init() never gets called 
+    // (say, because the C++ extension class is subclassed in python, and the subclass
+    // __init__() forgets to call the base class __init__()).
+    //
+    // Code which uses 'p' (e.g. from-python converter) should always check
+    // that it is non-NULL!
+    //
+    // Note: it is safe to assume that if tp_init() never gets called (or tp_new()), 
+    // then 'p' is a null pointer (rather than uninitialized memory).  This is because
+    // PyType_GenericAlloc() binary-zeroes its allocated memory.
+    //
+    // An important invariant of class_wrapper<T> which must be preserved: a
+    // master_hash_table entry exists for the (T *, PyObject *) pair if and only 
+    // if (p != nullptr).
+
+    T *p = nullptr;
+
+    // The precise semantics of the 'ref' field are nontrivial to explain!
+    //
+    // An object can either be "C++ managed" if it was originally constructed in C++,
+    // or "python-managed" if originally constructed in python.
+    //
+    // If an object is C++ managed, then 'ref' will be a nonempty shared_ptr<> which
+    // is constructed in tp_init() and destroyed in tp_dealloc().  When the PyObject
+    // is converted to a shared_ptr<T> by its from_python converter, we simply return
+    // a copy of 'ref'.  In this setup, the PyObject holds one reference, but more
+    // references can exist in C++ data structures elsewhere, and the PyObject's
+    // lifetime can be shorter than the C++ object's lifetime.
+    // 
+    // If an object is python-managed, then 'ref' will be an empty pointer, and the
+    // pointer 'p' is allocated with new(), and destroyed with delete().  When a
+    // shared_ptr is requested by C++ code (e.g. via the from_python_converter), we
+    // increment the python refcount, and return a C++ shared_ptr whose deleter is
+    // responsible for decrementing the refcount.  In this scenario, the PyObject's
+    // lifetime and the C++ object's lifetime are always the same.
+    //
+    // Note that 'ref' is constructed with "placement new" and destroyed with a direct
+    // destructor call.  I wanted to avoid making the assumption that a binary-zeroed
+    // shared_ptr<> is a valid (empty) pointer.  Therefore, there is an invariant that
+    // 'ref' is a valid shared_ptr<> if and only if (p != nullptr).  If p is NULL,
+    // then 'ref' should be treated as unintialized memory.
+    //
+    // Summarizing this comment and the preceding one:
+    //
+    //     if p == NULL:
+    //         no master_hash_table entry exists
+    //        'ref' is uninitialized memory
+    //     else:
+    //         master_tash_table entry exists
+    //         'ref' is a valid shared_ptr
+    //         if ref is an empty pointer:
+    //             object is python-managed
+    //         else:
+    //             object is C++ managed
+    //             'ref' points to 'p'.
+
+    std::shared_ptr<T> ref;
+};
 
 
 template<typename T>
@@ -99,7 +140,7 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
 
 
 template<typename T>
-inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> (py_object, py_tuple, py_dict)> f)
+inline void extension_type<T>::add_constructor(std::function<T* (py_object, py_tuple, py_dict)> f)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was called after finalize()");
@@ -108,25 +149,26 @@ inline void extension_type<T>::add_constructor(std::function<std::shared_ptr<T> 
 
     PyTypeObject *type = this->tobj;
 
-    auto g = [f,type](py_object self, py_tuple args, py_dict kwds) -> void {
+    auto tp_init = [f,type](py_object self, py_tuple args, py_dict kwds) -> void {
 	if (!PyObject_IsInstance(self.ptr, (PyObject *)type))
 	    throw std::runtime_error(std::string(type->tp_name) + ": 'self' argument to __init__() does not have expected type?!");
 
 	class_wrapper<T> *wp = reinterpret_cast<class_wrapper<T> *> (self.ptr);
-	if (wp->kind != OBJ_UNINITIALIZED)
+	if (wp->p)
 	    throw std::runtime_error(std::string(type->tp_name) + ": double call to __init__()?!");
 
-	std::shared_ptr<T> tp = f(self, args, kwds);
+	T *tp = f(self, args, kwds);
 	if (!tp)
 	    throw std::runtime_error(std::string(type->tp_name) + ": constructor function returned null pointer?!");
 
-	// class_wrapper<T>::ptr is constructed here, with "placement new".
-	wp->kind = OBJ_NON_PERSISTENT;
-	new(&wp->ptr) std::shared_ptr<T> (tp);
+	// Initialize new python-managed object.
+	new(&wp->ref) std::shared_ptr<T> ();   // "placement new"
+	master_hash_table_add(tp, self.ptr);
+	wp->p = tp;
     };
 
     // Convert std::function to C-style function pointer.
-    tobj->tp_init = make_kwargs_initproc(g);
+    tobj->tp_init = make_kwargs_initproc(tp_init);
 }
 
 
@@ -139,14 +181,14 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
     char *where = strdup(name.c_str());
     PyTypeObject *tp = this->tobj;
 
-    auto g = [f,where,tp](py_object self, py_tuple args, py_dict kwds) -> py_object {
-	std::shared_ptr<T> tself = extension_type<T>::from_python(tp, self, where);
-	return f(tself.get(), args, kwds);
+    auto py_method = [f,where,tp](py_object self, py_tuple args, py_dict kwds) -> py_object {
+	T *tself = extension_type<T>::bare_pointer_from_python(tp, self, where);
+	return f(tself, args, kwds);
     };
 
     PyMethodDef m;
     m.ml_name = where;
-    m.ml_meth = make_kwargs_cmethod(g);
+    m.ml_meth = make_kwargs_cmethod(py_method);
     m.ml_flags = METH_VARARGS | METH_KEYWORDS;
     m.ml_doc = strdup(docstring.c_str());
 
@@ -174,30 +216,63 @@ inline void extension_type<T>::finalize()
 
 
 template<typename T>
-inline std::shared_ptr<T> extension_type<T>::from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
+inline T *extension_type<T>::bare_pointer_from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
 {
     if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj))
 	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected object of type " + tobj->tp_name);
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
-    if (wp->kind == OBJ_UNINITIALIZED)
+    if (!wp->p)
 	throw std::runtime_error(std::string(where ? where : "pyclops") + ": " + tobj->tp_name + ".__init__() was never called?!");
 
-    return wp->ptr;
+    return wp->p;
+}
+
+
+template<typename T>
+inline std::shared_ptr<T> extension_type<T>::shared_ptr_from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
+{
+    if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj))
+	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected object of type " + tobj->tp_name);
+
+    auto *wp = reinterpret_cast<class_wrapper<T> *> (obj.ptr);
+    if (!wp->p)
+	throw std::runtime_error(std::string(where ? where : "pyclops") + ": " + tobj->tp_name + ".__init__() was never called?!");
+
+    if (wp->ref)
+	return wp->ref;  // object is C++ managed
+
+    // Object is python-managed.  We increment the refcount, and the shared_ptr is 
+    // responsible for decrementing it later, via master_hash_table_deleter().
+    Py_INCREF(obj.ptr);
+    return std::shared_ptr<T> (wp->p, master_hash_table_deleter);
 }
 
 
 template<typename T>
 inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x)
 {
-    PyObject *obj = tobj->tp_alloc(tobj, 0);
+    // FIXME: another option is to return None here, but I need to think about what's best!
+    if (!x)
+	throw std::runtime_error("pyclops: empty pointer in to_python converter");
+
+    // Check master_hash_table, to see whether python object already exists.
+    PyObject *obj = master_hash_table_query(x.get());
+    if (obj) 
+	return py_object::borrowed_reference(obj);
+
+    // Make new object.
+    // FIXME I suspect this should be tp_new(), rather than tp_alloc().
+    obj = tobj->tp_alloc(tobj, 0);
     if (!obj)
 	throw pyerr_occurred();
 
-    // class_wrapper<T>::ptr is constructed here, with "placement new".
     auto *wp = reinterpret_cast<class_wrapper<T> *> (obj);
-    new(&wp->ptr) std::shared_ptr<T> (x);
-    wp->kind = OBJ_NON_PERSISTENT;
+    new(&wp->ref) std::shared_ptr<T> ();   // "placement new"
+
+    master_hash_table_add(x.get(), obj);
+    wp->p = x.get();
+    wp->ref = x;
 
     return py_object::new_reference(obj);
 }
@@ -211,12 +286,13 @@ inline void extension_type<T>::tp_dealloc(PyObject *self)
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (self);
 
-    if (wp->kind == OBJ_UNINITIALIZED)
-	return;
-
-    // class_wrapper<T>::ptr is destroyed here, with direct destructor call.
-    wp->ptr.~shared_ptr();
-    wp->kind = OBJ_UNINITIALIZED;
+    if (wp->p) {
+	void *p = wp->p;
+	wp->p = nullptr;
+	master_hash_table_remove(p, self);
+	wp->ref.reset();
+	wp->ref.~shared_ptr();  // direct destructor call (counterpart of "placement new")
+    }
 }
 
 

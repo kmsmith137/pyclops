@@ -112,7 +112,7 @@ template<>
 struct converter<X> {
     static X from_python(const py_object &obj, const char *where=nullptr)
     {
-	auto p = extension_type<X>::from_python(X_type.tobj, obj, where);
+	auto p = extension_type<X>::shared_ptr_from_python(X_type.tobj, obj, where);
 	return *p;
     }
 
@@ -130,7 +130,7 @@ template<>
 struct converter<shared_ptr<X>> {
     static shared_ptr<X> from_python(const py_object &obj, const char *where=nullptr)
     {
-	return extension_type<X>::from_python(X_type.tobj, obj, where);
+	return extension_type<X>::shared_ptr_from_python(X_type.tobj, obj, where);
     }
 
     static py_object to_python(const shared_ptr<X> &x)
@@ -214,7 +214,7 @@ template<>
 struct converter<shared_ptr<Base>> {
     static shared_ptr<Base> from_python(const py_object &obj, const char *where=nullptr)
     {
-	return extension_type<Base>::from_python(Base_type.tobj, obj, where);
+	return extension_type<Base>::shared_ptr_from_python(Base_type.tobj, obj, where);
     }
 
     static py_object to_python(const shared_ptr<Base> &x)
@@ -260,8 +260,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     // ----------------------------------------------------------------------
 
-    auto X_constructor1 = [](py_object self, ssize_t i) { return make_shared<X> (i); };
-    auto X_constructor2 = std::function<shared_ptr<X>(py_object,ssize_t)> (X_constructor1);
+    auto X_constructor1 = [](py_object self, ssize_t i) { return new X(i); };
+    auto X_constructor2 = std::function<X* (py_object,ssize_t)> (X_constructor1);
 
     X_type.add_constructor(toy_wrap_constructor(X_constructor2));
     X_type.add_method("get", "get!", toy_wrap(&X::get));
@@ -295,8 +295,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_method("f_cpp", "forces call to f() to go through C++", toy_wrap(&Base::f_cpp));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
-    auto Base_constructor1 = [](py_object self, string name) -> shared_ptr<Base> { return make_shared<PyBase> (self, name); };
-    auto Base_constructor2 = std::function<shared_ptr<Base>(py_object,string)> (Base_constructor1);
+    auto Base_constructor1 = [](py_object self, string name) { return new PyBase(self, name); };
+    auto Base_constructor2 = std::function<Base* (py_object,string)> (Base_constructor1);
     Base_type.add_constructor(toy_wrap_constructor(Base_constructor2));
 
     m.add_type(Base_type);

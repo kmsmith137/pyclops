@@ -135,6 +135,22 @@ struct pyerr_occurred : std::exception
 
 // -------------------------------------------------------------------------------------------------
 //
+// Master hash table.
+
+
+extern void master_hash_table_add(void *cptr, PyObject *pptr);
+extern void master_hash_table_remove(void *cptr, PyObject *pptr);
+extern PyObject *master_hash_table_query(void *cptr);
+
+// Custom shared_ptr<> deleter.
+extern void master_hash_table_deleter(void *p);
+
+// Intended for debugging.
+extern void master_hash_table_print();
+
+
+// -------------------------------------------------------------------------------------------------
+//
 // py_object implementation.
 
 

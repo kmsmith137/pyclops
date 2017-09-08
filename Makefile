@@ -10,17 +10,17 @@
 # See site/Makefile.local.* for examples.
 
 
-INCFILES = pyclops.hpp \
+INCFILES = \
+  pyclops/cfunction_table.hpp \
+  pyclops/converters.hpp \
   pyclops/core.hpp \
+  pyclops/extension_module.hpp \
+  pyclops/extension_type.hpp \
+  pyclops/functional_wrappers.hpp \
+  pyclops/internals.hpp \
   pyclops/py_array.hpp \
   pyclops/py_type.hpp \
-  pyclops/py_weakref.hpp \
-  pyclops/converters.hpp \
-  pyclops/cfunction_table.hpp \
-  pyclops/extension_type.hpp \
-  pyclops/extension_module.hpp \
-  pyclops/functional_wrappers.hpp \
-  pyclops/internals.hpp
+  pyclops/py_weakref.hpp
 
 OFILES = cfunction_table.o \
   extension_module.o \
@@ -58,12 +58,16 @@ all: libpyclops.so pyclops.so the_greatest_module.so
 
 install: libpyclops.so pyclops.so
 	mkdir -p $(INCDIR)/pyclops $(LIBDIR)/ $(PYDIR)/
-	cp -f $(INCFILES) $(INCDIR)/
+	for f in $(INCFILES); do cp $$f $(INCDIR)/pyclops; done
+	cp -f pyclops.hpp $(INCDIR)/
 	cp -f libpyclops.so $(LIBDIR)/
 	cp -f pyclops.so $(PYDIR)/
 
 uninstall:
-	rm -rf $(INCDIR)/pyclops.hpp $(INCDIR)/pyclops/ $(LIBDIR)/libpyclops.so $(PYDIR)/pyclops.so
+	rm -f $(PYDIR)/pyclops.so
+	rm -f $(LIBDIR)/libpyclops.so
+	rm -f $(INCDIR)/pyclops/*.hpp $(INCDIR)/pyclops.hpp
+	rmdir $(INCDIR)/pyclops
 
 clean:
 	rm -f *~ *.o *.so *.pyc pyclops/*~

@@ -30,8 +30,8 @@ namespace pyclops {
 extern void set_python_error(const std::exception &e) noexcept;
 
 // Used to manage addition of the 'pyclops.mcpp_pybase' class to the pyclops.so extension module.
-extern void _add_reaper_type(PyObject *module);
-extern bool _reaper_type_ready();
+extern void _add_mcpp_pybase(PyObject *module);
+extern bool _mcpp_pybase_ready();
 
 
 }  // namespace pyclops

@@ -104,26 +104,16 @@ int npy_type_from_mcpp_typeid(mcpp_typeid mcpp_type, const char *where)
 //
 // Helpers for garbage collection.
 //
-// Reminder: mcpp_array garbage collection is done via a 'reaper' class,
+// Reminder: mcpp_array garbage collection is done via a shared_ptr<void>,
 // whereas numpy garbage collection is done via a 'pybase' object.
-//
-// We define two new classes:
-//
-//   - np_reaper: an mccp_arrays::array_reaper which wraps a python object
-//   - mcpp_pybase: a new python type whose instances wrap an mccp_arrays::array_reaper.
 
 
-struct np_reaper : public mcpp_arrays::mcpp_reaper {
-    py_object x;
-    np_reaper(const py_object &x_) : x(x_) { }
-    virtual ~np_reaper() { }
-};
-
-
+// FIXME should use general machinery here!
 struct mcpp_pybase {
     PyObject_HEAD
 
-    shared_ptr<mcpp_arrays::mcpp_reaper> *reaper;
+    int is_initialized = 0;
+    shared_ptr<void> ref;
     
     static PyObject *tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     {
@@ -132,7 +122,11 @@ struct mcpp_pybase {
 	    return NULL;
 
 	mcpp_pybase *self = (mcpp_pybase *) self_;
-	self->reaper = nullptr;
+	
+	// "Placement new"!
+	new(&self->ref) std::shared_ptr<void> (); 
+	self->is_initialized = 1;
+
 	return self_;
     }
 
@@ -140,8 +134,13 @@ struct mcpp_pybase {
     {
 	mcpp_pybase *self = (mcpp_pybase *) self_;
 
-	delete self->reaper;
-	self->reaper = nullptr;
+	if (self->is_initialized) {
+	    // Direct destructor call (counterpart of "placement new")
+	    self->ref.reset();
+	    self->ref.~shared_ptr();
+	    self->is_initialized = 0;
+	}
+
 	Py_TYPE(self)->tp_free(self_);
     }                
 
@@ -192,78 +191,93 @@ static PyTypeObject mcpp_pybase_type {
 };
 
 
-static bool _reaper_type_added = false;
+static bool _mcpp_pybase_added = false;
 
-void _add_reaper_type(PyObject *module)
+void _add_mcpp_pybase(PyObject *module)
 {
-    // FIXME: what action should be taken if _add_reaper_type() is called twice?
+    // FIXME is this best?
+    if (_mcpp_pybase_added)
+	return;
+
     Py_INCREF(&mcpp_pybase_type);
     PyModule_AddObject(module, "mcpp_pybase", (PyObject *)&mcpp_pybase_type);
-    _reaper_type_added = true;
+    _mcpp_pybase_added = true;
 }
 
-bool _reaper_type_ready()
+bool _mcpp_pybase_ready()
 {
     return (PyType_Ready(&mcpp_pybase_type) >= 0);
 }
 
 
 // -------------------------------------------------------------------------------------------------
-//
-// Externally-visible helpers for garbage collection.
 
 
-// Make a C++ reaper which wraps python object 'x'.
-shared_ptr<mcpp_arrays::mcpp_reaper> make_mcpp_reaper_from_pybase(const py_object &x)
+// Helper for make_mcpp_ref_from_pybase()
+static void decref_callback(void *p)
+{
+    PyObject *op = (PyObject *) p;
+    Py_XDECREF(op);
+}
+
+// Externally-visible function to make a C++ shared_ptr<void> from PyArray::base.
+shared_ptr<void> make_mcpp_ref_from_pybase(const py_object &x)
 {
     // FIXME improve!
-    if (!_reaper_type_added)
+    if (!_mcpp_pybase_added)
 	throw runtime_error("pyclops: currently you need to 'import pyclops' by hand");
 
-    // Typical case: construct new reaper.
-    if (!PyObject_IsInstance(x.ptr, (PyObject *) &mcpp_pybase_type))
-	return make_shared<np_reaper> (x);
+    PyObject *p = (PyObject *) x.ptr;
 
-    // Special case: 'x' is a python object which wraps a C++ reaper.
-    // In this case, rather than creating a new reaper, we return a pointer to the old one.
-    mcpp_pybase *mp = (mcpp_pybase *) (x.ptr);
-    
-    if (!mp->reaper)
-	throw runtime_error("pyclops internal error: unexpected null pointer in make_mcpp_reaper_from_pybase()");
+    // General case: return new shared_ptr which holds reference to object.
+    if (!PyObject_IsInstance(p, (PyObject *) &mcpp_pybase_type)) {
+	Py_INCREF(p);
+	return shared_ptr<void> (p, decref_callback);
+    }
 
-    shared_ptr<mcpp_arrays::mcpp_reaper> ret = *(mp->reaper);
+    // Special case: 'x' is a python object which wraps a C++ shared_ptr.
+    // In this case, we return a copy of the existing shared_ptr, rather than making a new one.
 
-    if (!ret)
-	throw runtime_error("pyclops internal error: unexpected empty pointer in make_mcpp_reaper_from_pybase()");
+    mcpp_pybase *mp = (mcpp_pybase *) p;
 
-    return ret;
+    if (!mp->is_initialized)
+	throw runtime_error("pyclops internal error: unintialized object in make_mcpp_ref_from_pybase()");
+    if (!mp->ref)
+	throw runtime_error("pyclops internal error: unexpected empty pointer in make_mcpp_ref_from_pybase()");
+
+    return mp->ref;
 }
 
 
-py_object make_pybase_from_mcpp_reaper(const shared_ptr<mcpp_arrays::mcpp_reaper> &reaper)
+// Externally-visible function to make a PyArray::base from a C++ shared_ptr<void>.
+py_object make_pybase_from_mcpp_ref(const shared_ptr<void> &ref)
 {
-    if (!reaper)
-	throw runtime_error("pyclops internal error: empty 'reaper' pointer passed to make_pybase_from_mcpp_reaper()");
-
     // FIXME improve!
-    if (!_reaper_type_added)
+    if (!_mcpp_pybase_added)
 	throw runtime_error("pyclops: currently you need to 'import pyclops' by hand");
 
-    // Special case: 'reaper' is a C++ reaper which wraps a pybase.
-    // In this case, rather than creating a new pybase, we return the old one.
-    np_reaper *npp = dynamic_cast<np_reaper *> (reaper.get());
-    
-    if (npp)
-	return npp->x;
+    if (!ref)
+	throw runtime_error("pyclops internal error: empty pointer passed to make_pybase_from_mcpp_ref()");
 
-    // Typical case: construct new pybase object.
+    auto d = std::get_deleter<void (*)(void *)> (ref);
+
+    if (d && (*d == decref_callback)) {
+	// Special case: 'ref' is holding a reference to a python object (via a decref_callback).
+	// In this case, we return a new reference to the existing object, rather than making a new object.
+	PyObject *p = (PyObject *) ref.get();
+	return py_object::borrowed_reference(p);
+    }
+
+    // General case: construct new python object (of type mcpp_pybase) which wraps the shared_ptr<void>.
 
     PyObject *p = mcpp_pybase::tp_new(&mcpp_pybase_type, NULL, NULL);
     py_object ret = py_object::new_reference(p);
-
     mcpp_pybase *mp = (mcpp_pybase *) (p);
-    mp->reaper = new shared_ptr<mcpp_arrays::mcpp_reaper> (reaper);
-    
+
+    if (!mp->is_initialized)
+	throw runtime_error("pyclops internal error: uninitialized mcpp_pybase object in make_pybase_from_mcpp_ref()");
+
+    mp->ref = ref;
     return ret;
 }
 

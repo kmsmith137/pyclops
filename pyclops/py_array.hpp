@@ -82,9 +82,9 @@ extern int npy_type_from_mcpp_typeid(mcpp_arrays::mcpp_typeid mcpp_type, const c
 
 extern mcpp_arrays::mcpp_typeid mcpp_typeid_from_npy_type(int npy_type, const char *where=nullptr);
 
-extern std::shared_ptr<mcpp_arrays::mcpp_reaper> make_mcpp_reaper_from_pybase(const py_object &x);
+extern std::shared_ptr<void> make_mcpp_ref_from_pybase(const py_object &x);
 
-extern py_object make_pybase_from_mcpp_reaper(const std::shared_ptr<mcpp_arrays::mcpp_reaper> &reaper);
+extern py_object make_pybase_from_mcpp_ref(const std::shared_ptr<void> &ref);
 
 
 // -------------------------------------------------------------------------------------------------

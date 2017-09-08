@@ -16,12 +16,12 @@ PyMODINIT_FUNC initpyclops(void)
 {
     import_array();
 
-    if (!_reaper_type_ready())
+    if (!_mcpp_pybase_ready())
 	return;
 
     PyObject *m = Py_InitModule3("pyclops", module_methods, "pyclops: a C++ library for writing python extension modules");
     if (!m)
         return;
 
-    _add_reaper_type(m);
+    _add_mcpp_pybase(m);
 }

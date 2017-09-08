@@ -127,35 +127,36 @@ struct converter<mcpp_arrays::rs_array<T>> {
 	py_array a(x);
 
 	int ndim = a.ndim();
-	npy_intp *shape = a.shape();
-	npy_intp *strides = a.strides();
-	npy_intp itemsize = a.itemsize();
-	T *data = reinterpret_cast<T *> (a.data());
-	
-	// FIXME how to handle case where numpy array is read-only,
-	// and T is a non-const type?
-	
-	auto dtype = mcpp_typeid_from_npy_type(a.npy_type(), where);
-	auto reaper = make_mcpp_reaper_from_pybase(a._base());
-	
-	// Note: rs_array constructor will throw an exception if 'dtype' doesn't match T.
-	// Note: this is an "incomplete" constructor, still need to set shape/strides and call _finalize_shape_and_strides().
-	mcpp_arrays::rs_array<T> ret(ndim, data, dtype, reaper, where);
+	npy_intp *np_shape = a.shape();
+	npy_intp *np_strides = a.strides();
+	npy_intp np_itemsize = a.itemsize();
 
-	// This check should never fail, but seemed like a good idea.
-	if (ret.itemsize != itemsize)
-	    throw std::runtime_error("pyclops internal error: itemsize mismatch in rs_array from_python converter");
+	// Both numpy and mcpp_arrays define 'shape' and 'strides' arrays, but there are
+	// two minor differences.  First, numpy uses npy_intp whereas mcpp_arrays uses ssize_t,
+	// and in principle these types can be different.  Second, the definitions of the
+	// strides differ by a factor of 'itemsize'.
+
+	std::vector<ssize_t> tmp(2*ndim);
+	ssize_t *m_shape = &tmp[0];
+	ssize_t *m_strides = &tmp[ndim];
 	
 	for (int i = 0; i < ndim; i++) {
-	    // FIXME how to handle case where stride is not divisible by itemsize?
-	    if (strides[i] % itemsize != 0)
+	    // FIXME does numpy allow the stride to not be divisible by the itemsize?
+	    // If so, this is an annoying corner case we should eventually handle!
+	    if (np_strides[i] % np_itemsize != 0)
 		throw std::runtime_error("pyclops internal error: can't divide stride by itemsize");
-	    ret.shape[i] = shape[i];
-	    ret.strides[i] = strides[i] / itemsize;
+	    m_shape[i] = np_shape[i];
+	    m_strides[i] = np_strides[i] / np_itemsize;
 	}
 	
-	// Finishes construction of rs_array, as noted above.
-	ret._finalize_shape_and_strides(where);
+	auto dtype = mcpp_typeid_from_npy_type(a.npy_type(), where);
+	auto ref = make_mcpp_ref_from_pybase(a._base());
+
+	mcpp_arrays::rs_array<T> ret(a.data(), ndim, m_shape, m_strides, dtype, ref, where);
+
+	// This check should never fail, but seemed like a good idea.
+	if (ret.itemsize != np_itemsize)
+	    throw std::runtime_error("pyclops internal error: itemsize mismatch in numpy array from_python converter");
 	
 	return ret;
     }
@@ -171,7 +172,7 @@ struct converter<mcpp_arrays::rs_array<T>> {
 
     static py_object to_python(const mcpp_arrays::rs_array<T> &x)
     {
-	py_object pybase = make_pybase_from_mcpp_reaper(x.reaper);
+	py_object pybase = make_pybase_from_mcpp_ref(x.ref);
 	int npy_type = npy_type_from_mcpp_typeid(x.dtype, "rs_array to-python converter");
 
 	std::vector<npy_intp> v(2 * x.ndim);

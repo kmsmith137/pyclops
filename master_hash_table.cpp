@@ -56,6 +56,8 @@ void master_hash_table_remove(void *cptr, PyObject *pptr)
     if (p->second != pptr)
 	throw runtime_error("pyclops: internal error in master_hash_table_remove(): PyObject mismatch");
 
+    master_hash_table.erase(p);
+
 #if PYCLOPS_MASTER_HASH_TABLE_DEBUG
     cout << "master_hash_table_remove(): success.  Current hash table follows." << endl;
     master_hash_table_print();

@@ -12,7 +12,6 @@ namespace pyclops {
 static constexpr int max_kwargs_cfunctions = 20;
 static constexpr int max_kwargs_cmethods = 50;
 static constexpr int max_kwargs_initprocs = 20;
-static constexpr int max_getters = 50;
 
 
 // -------------------------------------------------------------------------------------------------
@@ -217,27 +216,16 @@ initproc make_kwargs_initproc(std::function<void (py_object, py_tuple, py_dict)>
 
 // -------------------------------------------------------------------------------------------------
 //
-// getter
-//
-// Input:    std::function<py_object(py_object)>
-// Output:   PyObject* (*)(PyObject *, void *)
+// Getters/setters.
 
 
-struct getter_table_entry {
-    std::function<py_object(py_object)> cpp_func;
-    PyObject * (*c_func)(PyObject *, void *);
-};
-
-static vector<getter_table_entry> getter_table(max_getters);
-static int num_getters = 0;
-
-
-// non-inline
-PyObject *_getter_body(PyObject *self, void *closure, int N)
+PyObject *pyclops_getter(PyObject *self, void *closure)
 {
+    property_closure *pc = reinterpret_cast<property_closure *> (closure);
+
     try {
 	py_object s = py_object::borrowed_reference(self);
-	py_object r = getter_table[N].cpp_func(s);
+	py_object r = pc->f_get(s);
 
 	PyObject *ret = r.ptr;
 	r.ptr = NULL;  // steal reference
@@ -252,33 +240,6 @@ PyObject *_getter_body(PyObject *self, void *closure, int N)
     }
 }
 
-template<int N>
-static PyObject *getter_body(PyObject *self, void *closure)
-{
-    return _getter_body(self, closure, N);
-}
-
-
-template<int N, typename std::enable_if<(N==0),int>::type = 0>
-inline void initialize_getters() { }
-
-template<int N, typename std::enable_if<(N>0),int>::type = 0>
-inline void initialize_getters()
-{
-    initialize_getters<N-1>();    
-    getter_table[N-1].c_func = getter_body<N-1>;
-}
-
-
-getter make_getter(std::function<py_object(py_object)> f)
-{
-    if (num_getters >= max_getters)
-	throw runtime_error("pyclops: cfunction_table is full!");
-
-    getter_table[num_getters].cpp_func = f;
-    return getter_table[num_getters++].c_func;
-}
-
 
 // -------------------------------------------------------------------------------------------------
 
@@ -290,7 +251,6 @@ namespace {
 	    initialize_kwargs_cfunctions<max_kwargs_cfunctions> ();
 	    initialize_kwargs_cmethods<max_kwargs_cmethods> ();
 	    initialize_kwargs_initprocs<max_kwargs_initprocs> ();
-	    initialize_getters<max_getters> ();
 	}
     } _ini;
 }

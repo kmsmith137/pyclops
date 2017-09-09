@@ -23,8 +23,19 @@ extern PyCFunction make_kwargs_cfunction(std::function<py_object(py_tuple,py_dic
 extern PyCFunction make_kwargs_cmethod(std::function<py_object(py_object,py_tuple,py_dict)> f);
 extern initproc make_kwargs_initproc(std::function<void(py_object, py_tuple, py_dict)> f);
 
-// typedef PyObject *(*getter)(PyObject *, void *);
-extern getter make_getter(std::function<py_object(py_object)> f);
+
+// -------------------------------------------------------------------------------------------------
+//
+// Because property getters/setters have a "closure", we can simplify by using a single cfunction,
+// rather than a cfunction_table.
+
+
+struct property_closure {
+    std::function<py_object(py_object)> f_get;
+    // std::function<py_object(py_object,py_object)> f_set;
+};
+
+extern PyObject *pyclops_getter(PyObject *self, void *closure);
 
 
 }  // namespace pyclops

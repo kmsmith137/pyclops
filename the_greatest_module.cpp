@@ -170,32 +170,15 @@ struct Derived : public Base {
 
 // Represents a Base which has been subclassed from python.
 struct PyBase : public Base {
-    py_weakref weakref;
-
     PyBase(const py_object &self, const string &name) : 
-	Base(name),
-	weakref(py_weakref::make(self))
+	Base(name)
     { }
 
     virtual ssize_t f(ssize_t n) override
     {
-	cout << "    PyBase::f() called" << endl;
-	// return call_method<ssize_t> ("f", n);
-
-	py_object obj = weakref.dereference();
-	if (obj.is_none())
-            throw runtime_error("PyBase.f(): weak reference expired!");
-
-	PyObject *fp = PyObject_GetAttrString(obj.ptr, "f");
-	if (!fp)
-	    throw runtime_error("Base.f: pure virtual, but not defined in subclass");
-
-	py_object func = py_object::new_reference(fp);
-
-	// skip is_callable()?
-
 	py_tuple args = py_tuple::make(n);
-	return converter<ssize_t>::from_python(func.call(args), "Base.f");
+	py_object ret = _py_upcall(this, "f", args);
+	return converter<ssize_t>::from_python(ret, "Base.f");
     }
 }; 
 

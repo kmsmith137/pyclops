@@ -61,6 +61,12 @@ struct extension_type {
 };
 
 
+// _py_upcall(): helper for implementing virtual functions.
+// This version takes 'py_tuple' args and returns a py_object.
+// FIXME will write py_upcall() later - this will be a variadic template which applies converters.
+inline py_object _py_upcall(void *self, const char *meth_name, const py_tuple &args);
+
+
 // -------------------------------------------------------------------------------------------------
 //
 // Implementation.
@@ -428,6 +434,28 @@ inline void extension_type<T>::tp_dealloc(PyObject *self)
 	wp->ref.reset();
 	wp->ref.~shared_ptr();  // direct destructor call (counterpart of "placement new")
     }
+}
+
+
+// -------------------------------------------------------------------------------------------------
+
+
+inline py_object _py_upcall(void *self, const char *meth_name, const py_tuple &args)
+{
+    PyObject *s = master_hash_table_query(self);
+
+    // FIXME how to improve this error message?
+    if (!s)
+	throw std::runtime_error("pyclops internal error: couldn't find object in master_hash_table during upcall");
+
+    // This should never fail, since the method should be defined by the base class.
+    // FIXME how to improve this error message?
+    PyObject *fp = PyObject_GetAttrString(s, meth_name);
+    if (!fp)
+	throw std::runtime_error("pyclops internal error: couldn't find attribute during upcall");
+
+    py_object func = py_object::new_reference(fp);
+    return func.call(args);
 }
 
 

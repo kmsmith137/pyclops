@@ -143,7 +143,6 @@ struct converter<shared_ptr<X>> {
 // -------------------------------------------------------------------------------------------------
 
 
-
 struct Base {
     const string name;
     Base(const string &name_) : name(name_) { }    
@@ -266,6 +265,10 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     X_type.add_constructor(toy_wrap_constructor(X_constructor2));
     X_type.add_method("get", "get!", toy_wrap(&X::get));
+
+    std::function<ssize_t(const X *x)> X_xget = [](const X *x) { return x->x; };
+    X_type.add_property("xget", "get x!", X_xget);
+
     m.add_type(X_type);
 
     auto make_X = [](ssize_t i) -> X { return X(i); };

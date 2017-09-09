@@ -3,6 +3,7 @@
 
 #include "core.hpp"
 #include "cfunction_table.hpp"
+#include "functional_wrappers.hpp"
 
 namespace pyclops {
 #if 0
@@ -26,9 +27,25 @@ struct extension_type {
     inline void add_method(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f, bool pure_virtual=false);
     inline void add_pure_virtual(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f);
 
+    // General property API.
+    inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get);
+    // inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get, const std::function<py_object(py_object,py_object) f_set);
+
+    // This more specific API suffices for simple properties.
+    //    struct X { int x; ... };
+    //    std::function<int(const X*)> f_ro = [](const X *self) { return self->x; };
+    //    std::function<int& (X*)> f_rw = [](X *self) -> int& { return self->x; };
+
+    template<typename R>
+    inline void add_property(const std::string &name, const std::string &docstring, const std::function<R(const T *)> &f);
+
+    //template<class C, typename R>
+    //inline void add_property(const std::string &name, const std::string &docstring, const std::function<R& (C *)> &f);
+
     inline void finalize();
 
     // These guys are intended to be wrapped by converters.
+    // FIXME wouldn't it be better to make them member functions?
     static inline py_object to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x);
     static inline T *bare_pointer_from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
     static inline std::shared_ptr<T> shared_ptr_from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
@@ -39,8 +56,8 @@ struct extension_type {
     bool finalized = false;
 
     // Note: bare pointer to std::vector is intentional here!
-    // Reminder: a PyMethodDef is a (name, cfunc, flags, docstring) quadruple.
-    std::vector<PyMethodDef> *methods;
+    std::vector<PyMethodDef> *methods = nullptr;     // (name, cfunc, flags, docstring)
+    std::vector<PyGetSetDef> *getsetters = nullptr;  // (name, getter, setter, doc, closure)
 };
 
 
@@ -51,7 +68,6 @@ struct extension_type {
 
 // The class_wrapper<T> type is used "under the hood" to embed the shared_ptr<T> in a PyObject.
 // Members of class_wrapper<T> are only accessed by extension_type<T> (in this source file).
-
 
 template<typename T>
 struct class_wrapper {
@@ -118,9 +134,11 @@ struct class_wrapper {
 
 
 template<typename T>
-extension_type<T>::extension_type(const std::string &name, const std::string &docstring) :
-    methods(new std::vector<PyMethodDef> ())
+extension_type<T>::extension_type(const std::string &name, const std::string &docstring)
 { 
+    this->methods = new std::vector<PyMethodDef> ();
+    this->getsetters = new std::vector<PyGetSetDef> ();
+
     // This is probably silly, but I decided to overallocate the PyTypeObject to avoid
     // a possible segfault if the python interpreter gets recompiled with -DCOUNT_ALLOCS.
     ssize_t nalloc = sizeof(PyTypeObject) + 128;
@@ -221,6 +239,46 @@ inline void extension_type<T>::add_pure_virtual(const std::string &name, const s
 
 
 template<typename T>
+inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get)
+{
+    if (finalized)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_property() was called after finalize()");
+
+    // FIXME memory leaks!
+    property_closure *p = new property_closure;
+    p->f_get = f_get;
+    
+    PyGetSetDef gs;
+    gs.name = strdup(name.c_str());
+    gs.get = pyclops_getter;
+    gs.set = NULL;
+    gs.doc = strdup(docstring.c_str());
+    gs.closure = p;
+    
+    getsetters->push_back(gs);
+}
+
+
+template<typename T> template<typename R>
+inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<R(const T *)> &f)
+{
+    // FIXME memory leak
+    PyTypeObject *tp = this->tobj;
+    std::string propname = std::string(tp->tp_name) + "." + name;
+    const char *cpropname = strdup(propname.c_str());
+
+    std::function<py_object(py_object)> f_get = [f,tp,cpropname](py_object self) -> py_object
+	{
+	    T *cself = bare_pointer_from_python(tp, self, cpropname);
+	    R cret = f(cself);
+	    return converter<R>::to_python(cret);
+	};
+
+    this->add_property(name, docstring, f_get);
+}
+
+
+template<typename T>
 inline void extension_type<T>::finalize()
 {
     if (!tobj->tp_init)
@@ -228,12 +286,17 @@ inline void extension_type<T>::finalize()
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": double call to extension_type::finalize()");
 
-    int nmethods = methods->size();
+    // Note that we include zeroed sentinels.
 
-    // Note that we include a zeroed sentinel.
+    int nmethods = methods->size();
     tobj->tp_methods = (PyMethodDef *) malloc((nmethods+1) * sizeof(PyMethodDef));
     memset(tobj->tp_methods, 0, (nmethods+1) * sizeof(PyMethodDef));
     memcpy(tobj->tp_methods, &(*methods)[0], nmethods * sizeof(PyMethodDef));
+
+    int ngetsetters = getsetters->size();
+    tobj->tp_getset = (PyGetSetDef *) malloc((ngetsetters+1) * sizeof(PyGetSetDef));
+    memset(tobj->tp_getset, 0, (ngetsetters+1) * sizeof(PyGetSetDef));
+    memcpy(tobj->tp_getset, &(*getsetters)[0], ngetsetters * sizeof(PyGetSetDef));
 
     this->finalized = true;
 }

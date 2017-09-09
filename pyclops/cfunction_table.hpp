@@ -32,10 +32,11 @@ extern initproc make_kwargs_initproc(std::function<void(py_object, py_tuple, py_
 
 struct property_closure {
     std::function<py_object(py_object)> f_get;
-    // std::function<py_object(py_object,py_object)> f_set;
+    std::function<void(py_object,py_object)> f_set;
 };
 
 extern PyObject *pyclops_getter(PyObject *self, void *closure);
+extern int pyclops_setter(PyObject *self, PyObject *value, void *closure);
 
 
 }  // namespace pyclops

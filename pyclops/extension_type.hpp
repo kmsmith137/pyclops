@@ -29,7 +29,7 @@ struct extension_type {
 
     // General property API.
     inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get);
-    // inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get, const std::function<py_object(py_object,py_object) f_set);
+    inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get, const std::function<void(py_object,py_object)> &f_set);
 
     // This more specific API suffices for simple properties.
     //    struct X { int x; ... };
@@ -39,8 +39,8 @@ struct extension_type {
     template<typename R>
     inline void add_property(const std::string &name, const std::string &docstring, const std::function<R(const T *)> &f);
 
-    //template<class C, typename R>
-    //inline void add_property(const std::string &name, const std::string &docstring, const std::function<R& (C *)> &f);
+    template<typename R>
+    inline void add_property(const std::string &name, const std::string &docstring, const std::function<R& (T *)> &f);
 
     inline void finalize();
 
@@ -259,6 +259,28 @@ inline void extension_type<T>::add_property(const std::string &name, const std::
 }
 
 
+template<typename T>
+inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get, const std::function<void(py_object,py_object)> &f_set)
+{
+    if (finalized)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_property() was called after finalize()");
+
+    // FIXME memory leaks!
+    property_closure *p = new property_closure;
+    p->f_get = f_get;
+    p->f_set = f_set;
+    
+    PyGetSetDef gs;
+    gs.name = strdup(name.c_str());
+    gs.get = pyclops_getter;
+    gs.set = pyclops_setter;
+    gs.doc = strdup(docstring.c_str());
+    gs.closure = p;
+    
+    getsetters->push_back(gs);
+}
+
+
 template<typename T> template<typename R>
 inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<R(const T *)> &f)
 {
@@ -275,6 +297,32 @@ inline void extension_type<T>::add_property(const std::string &name, const std::
 	};
 
     this->add_property(name, docstring, f_get);
+}
+
+
+template<typename T> template<typename R>
+inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<R& (T *)> &f)
+{
+    // FIXME memory leak
+    PyTypeObject *tp = this->tobj;
+    std::string propname = std::string(tp->tp_name) + "." + name;
+    const char *cpropname = strdup(propname.c_str());
+
+    std::function<py_object(py_object)> f_get = [f,tp,cpropname](py_object self) -> py_object
+	{
+	    T *cself = bare_pointer_from_python(tp, self, cpropname);
+	    R &cret = f(cself);
+	    return converter<R>::to_python(cret);
+	};
+
+    std::function<void(py_object,py_object)> f_set = [f,tp,cpropname](py_object self, py_object value) -> void
+	{
+	    T *cself = bare_pointer_from_python(tp, self, cpropname);
+	    R &cret = f(cself);
+	    cret = converter<R>::from_python(value);
+	};
+
+    this->add_property(name, docstring, f_get, f_set);
 }
 
 

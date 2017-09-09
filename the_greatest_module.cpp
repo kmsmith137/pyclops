@@ -269,6 +269,9 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     std::function<ssize_t(const X *x)> X_xget = [](const X *x) { return x->x; };
     X_type.add_property("xget", "get x!", X_xget);
 
+    std::function<ssize_t& (X *x)> X_xset = [](X *x) -> ssize_t & { return x->x; };
+    X_type.add_property("xset", "set x!", X_xset);
+
     m.add_type(X_type);
 
     auto make_X = [](ssize_t i) -> X { return X(i); };

@@ -241,6 +241,26 @@ PyObject *pyclops_getter(PyObject *self, void *closure)
 }
 
 
+int pyclops_setter(PyObject *self, PyObject *value, void *closure)
+{
+    property_closure *pc = reinterpret_cast<property_closure *> (closure);
+
+    try {
+	py_object s = py_object::borrowed_reference(self);
+	py_object v = py_object::borrowed_reference(value);
+	pc->f_set(s,v);
+	return 0;
+    }
+    catch (std::exception &e) {
+	set_python_error(e);
+	return -1;   // FIXME is this correct?
+    } catch (...) {
+	PyErr_SetString(PyExc_RuntimeError, "C++ exception was thrown, but not a subclass of std::exception");
+	return -1;   // FIXME is this correct?
+    }
+}
+
+
 // -------------------------------------------------------------------------------------------------
 
 

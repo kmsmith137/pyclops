@@ -30,8 +30,12 @@ struct py_array : public py_object {
 
     inline int ncontig() const;
 
-    // FIXME use std::initializer_list here, to define py_array::make<float> ({2,3,4});
-    template<typename T> static inline py_array make(int ndim, const npy_intp *shape);
+    // Note that the 'type' argument can be npy_type<T>::id.
+    static inline py_array make(int ndim, const npy_intp *shape, int type);
+
+    // The 'req' argument is a bitwise-or of required numpy flags (see below for list of all flags).
+    // If 'min_ndim' and/or 'max_ndim' arguments are zero, they will be ignored.
+    static inline py_array from_sequence(const py_object &seq, int type, int req, int min_ndim=0, int max_ndim=0);
 
     // Two versions of py_array::from_pointer(), with and without a base object.
     // Reminder: following numpy conventions, the strides should include a factor of 'itemsize'!
@@ -41,8 +45,8 @@ struct py_array : public py_object {
 
     static inline py_array from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides,
 					int itemsize, void *data, int npy_type, int flags, const py_object &base);
-					
 
+    
     // Reminder: the numpy flags are as follows:
     //
     //   NPY_ARRAY_C_CONTIGUOUS
@@ -198,10 +202,24 @@ inline int py_array::ncontig() const
 }
 
 
-template<typename T> 
-inline py_array py_array::make(int ndim, const npy_intp *shape)
+inline py_array py_array::make(int ndim, const npy_intp *shape, int type)
 {
-    PyObject *p = PyArray_SimpleNew(ndim, const_cast<npy_intp *> (shape), npy_type<T>::id);
+    PyObject *p = PyArray_SimpleNew(ndim, const_cast<npy_intp *> (shape), type);
+    return py_array::new_reference(p);
+}
+
+
+inline py_array py_array::from_sequence(const py_object &seq, int type, int requirements, int min_ndim, int max_ndim)
+{
+    // Make sure the returned array is a base-class ndarray.
+    requirements |= NPY_ARRAY_ENSUREARRAY;
+
+    // FIXME figure out whether I need to decrement the refcount.
+    PyArray_Descr *desc = PyArray_DescrFromType(type);
+    if (!desc)
+	throw pyerr_occurred("py_array::from_sequence()");
+
+    PyObject *p = PyArray_FromAny(seq.ptr, desc, min_ndim, max_ndim, requirements, NULL);
     return py_array::new_reference(p);
 }
 

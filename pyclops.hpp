@@ -13,6 +13,7 @@
 #include "pyclops/py_weakref.hpp"
 
 #include "pyclops/converters.hpp"
+#include "pyclops/array_converters.hpp"
 #include "pyclops/extension_type.hpp"
 #include "pyclops/extension_module.hpp"
 #include "pyclops/functional_wrappers.hpp"

@@ -42,18 +42,14 @@ static string describe_array(py_array a)
 }
 
 
-static double sum_array(py_object obj)
+// For simplicity (but not efficiency), we force the array to be contiguous and convert to double.
+static double sum_array(in_carray<double> a)
 {
-    // For simplicity (but not efficiency), we force the array to be contiguous and convert to double.
-    int flags = NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_NOTSWAPPED | NPY_ARRAY_FORCECAST;
-    py_array a = py_array::from_sequence(obj, npy_type<double>::id, flags);
-    
-    const double *data = reinterpret_cast<const double *> (a.data());
     npy_intp size = a.size();
     
     double ret = 0.0;
     for (npy_intp i = 0; i < size; i++)
-	ret += data[i];
+	ret += a.data[i];
 
     return ret;
 }

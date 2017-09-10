@@ -11,6 +11,7 @@
 
 
 INCFILES = \
+  pyclops/array_converters.hpp \
   pyclops/cfunction_table.hpp \
   pyclops/converters.hpp \
   pyclops/core.hpp \

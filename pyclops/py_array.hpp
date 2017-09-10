@@ -26,9 +26,15 @@ struct py_array : public py_object {
     inline void *data() const         { return PyArray_DATA(aptr()); }
     inline int npy_type() const       { return PyArray_TYPE(aptr()); }
 
+    // Two versions of py_array::from_pointer(), with and without a base object.
+    // Reminder: following numpy conventions, the strides should include a factor of 'itemsize'!
+
     static inline py_array from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides,
-					int itemsize, void *data, int npy_type, int flags, 
-					const py_object &base);
+					int itemsize, void *data, int npy_type, int flags);
+
+    static inline py_array from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides,
+					int itemsize, void *data, int npy_type, int flags, const py_object &base);
+					
 
     // Reminder: the numpy flags are as follows:
     //
@@ -76,14 +82,11 @@ struct py_array : public py_object {
 };
 
 
+// Externally-visible functions defined in numpy_arrays.cpp
 extern const char *npy_typestr(int npy_type);
-
 extern int npy_type_from_mcpp_typeid(mcpp_arrays::mcpp_typeid mcpp_type, const char *where=nullptr);
-
 extern mcpp_arrays::mcpp_typeid mcpp_typeid_from_npy_type(int npy_type, const char *where=nullptr);
-
 extern std::shared_ptr<void> make_mcpp_ref_from_pybase(const py_object &x);
-
 extern py_object make_pybase_from_mcpp_ref(const std::shared_ptr<void> &ref);
 
 
@@ -129,9 +132,18 @@ inline void py_array::_check(const char *loc)
 }
 
 
-// static constructor-like member function
-inline py_array py_array::from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides,
-				       int itemsize, void *data, int npy_type, int flags, const py_object &base)
+// py_array::from_pointer(): static constructor-like member function
+inline py_array py_array::from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides, int itemsize, void *data, int npy_type, int flags)
+{
+    PyObject *p = PyArray_New(&PyArray_Type, ndim, const_cast<npy_intp *> (shape), npy_type,
+			      const_cast<npy_intp *> (strides), data, itemsize, flags, NULL);
+
+    return py_array::new_reference(p);
+}
+
+
+// This version of py_array::from_pointer() has a 'base' object.
+inline py_array py_array::from_pointer(int ndim, const npy_intp *shape, const npy_intp *strides, int itemsize, void *data, int npy_type, int flags, const py_object &base)
 {
     PyObject *p = PyArray_New(&PyArray_Type, ndim, const_cast<npy_intp *> (shape), npy_type,
 			      const_cast<npy_intp *> (strides), data, itemsize, flags, NULL);

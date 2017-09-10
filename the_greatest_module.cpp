@@ -55,6 +55,21 @@ static double sum_array(in_carray<double> a)
 }
 
 
+static void add_21(io_ncarray<float,2,1> a, double t)
+{
+    npy_intp *shape = a.shape();
+    npy_intp *strides = a.strides();
+
+    npy_intp m = shape[0];
+    npy_intp n = shape[1];
+    npy_intp s = strides[0] / sizeof(float);
+    
+    for (npy_intp i = 0; i < m; i++)
+	for (npy_intp j = 0; j < n; j++)
+	    a.data[i*s+j] += t;
+}
+
+
 // Currently has to be called from python as make_array((2,3,4)).
 static py_object make_array(py_tuple dims)
 {
@@ -225,6 +240,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("describe_array", toy_wrap(describe_array));
     m.add_function("sum_array", toy_wrap(sum_array));
     m.add_function("make_array", toy_wrap(make_array));
+    m.add_function("add_21", toy_wrap(add_21));
     m.add_function("print_float", toy_wrap(print_float));
 
     auto get_basicsize = [](py_type t) -> ssize_t { return t.get_basicsize(); };

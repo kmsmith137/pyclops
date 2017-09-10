@@ -19,8 +19,8 @@ static string describe_array(py_array a)
     npy_intp *shape = a.shape();
     npy_intp *strides = a.strides();
     
-    ss << "array(npy_type=" << a.npy_type()
-       << " (" << npy_typestr(a.npy_type())
+    ss << "array(npy_type=" << a.type()
+       << " (" << npy_typestr(a.type())
        << "), shape=(";
 
     for (int i = 0; i < ndim; i++) {
@@ -42,22 +42,20 @@ static string describe_array(py_array a)
 }
 
 
-static double _sum(int ndim, const ssize_t *shape, const ssize_t *strides, const double *data)
+static double sum_array(py_object obj)
 {
-    if (ndim == 0)
-	return data[0];
-
+    // For simplicity (but not efficiency), we force the array to be contiguous and convert to double.
+    int flags = NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_NOTSWAPPED | NPY_ARRAY_FORCECAST;
+    py_array a = py_array::from_sequence(obj, npy_type<double>::id, flags);
+    
+    const double *data = reinterpret_cast<const double *> (a.data());
+    npy_intp size = a.size();
+    
     double ret = 0.0;
-    for (int i = 0; i < shape[0]; i++)
-	ret += _sum(ndim-1, shape+1, strides+1, data + i*strides[0]);
+    for (npy_intp i = 0; i < size; i++)
+	ret += data[i];
 
     return ret;
-}
-
-
-static double sum_array(rs_array<double> a)
-{
-    return _sum(a.ndim, a.shape, a.strides, a.data);
 }
 
 
@@ -65,20 +63,22 @@ static double sum_array(rs_array<double> a)
 static py_object make_array(py_tuple dims)
 {
     int ndims = dims.size();
-    vector<ssize_t> shape(ndims);
+    vector<npy_intp> shape(ndims);
 
     for (int i = 0; i < ndims; i++)
 	shape[i] = converter<ssize_t>::from_python(dims.get_item(i));
 
-    rs_array<int> a(ndims, &shape[0]);
+    py_array ret = py_array::make(ndims, &shape[0], npy_type<int>::id);
 
-    if (a.ncontig != ndims)
-	throw runtime_error("make_array: rs_array was not fully contiguous as expected");
+    if (ret.ncontig() != ndims)
+	throw runtime_error("make_array: array was not fully contiguous as expected");
 
-    for (int i = 0; i < a.size; i++)
-	a.data[i] = 100 * i;
+    int size = ret.size();
+    int *data = (int *) ret.data();
 
-    py_array ret = converter<rs_array<int>>::to_python(a);
+    for (int i = 0; i < size; i++)
+	data[i] = 100 * i;
+
     cout << "make_array returning: " << describe_array(ret) << endl;
     return ret;
 }

@@ -7,7 +7,6 @@
 
 #include <sstream>
 #include <iostream>
-#include <mcpp_arrays.hpp>
 
 #include "pyclops/core.hpp"
 #include "pyclops/py_array.hpp"
@@ -28,10 +27,6 @@ namespace pyclops {
 
 // This is called whenever we want to "swallow" a C++ exception, but propagate it into the python error indicator.
 extern void set_python_error(const std::exception &e) noexcept;
-
-// Used to manage addition of the 'pyclops.mcpp_pybase' class to the pyclops.so extension module.
-extern void _add_mcpp_pybase(PyObject *module);
-extern bool _mcpp_pybase_ready();
 
 
 }  // namespace pyclops

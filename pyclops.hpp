@@ -5,8 +5,6 @@
 #error "This source file needs to be compiled with -std=c++11"
 #endif
 
-#include <mcpp_arrays.hpp>
-
 #include "pyclops/core.hpp"
 #include "pyclops/py_array.hpp"
 #include "pyclops/py_type.hpp"

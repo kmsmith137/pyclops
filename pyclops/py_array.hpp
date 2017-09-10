@@ -1,7 +1,6 @@
 #ifndef _PYCLOPS_ARRAY_HPP
 #define _PYCLOPS_ARRAY_HPP
 
-#include <mcpp_arrays.hpp>
 #include <complex>
 #include "core.hpp"
 
@@ -95,10 +94,6 @@ struct py_array : public py_object {
 
 // Externally-visible functions defined in numpy_arrays.cpp
 extern const char *npy_typestr(int npy_type);
-extern int npy_type_from_mcpp_typeid(mcpp_arrays::mcpp_typeid mcpp_type, const char *where=nullptr);
-extern mcpp_arrays::mcpp_typeid mcpp_typeid_from_npy_type(int npy_type, const char *where=nullptr);
-extern std::shared_ptr<void> make_mcpp_ref_from_pybase(const py_object &x);
-extern py_object make_pybase_from_mcpp_ref(const std::shared_ptr<void> &ref);
 
 
 // -------------------------------------------------------------------------------------------------

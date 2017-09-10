@@ -1,10 +1,8 @@
 #include <sstream>
 #include <iostream>
-#include <mcpp_arrays.hpp>
 #include "pyclops.hpp"
 
 using namespace std;
-using namespace mcpp_arrays;
 using namespace pyclops;
 
 

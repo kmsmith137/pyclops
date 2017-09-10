@@ -28,6 +28,8 @@ struct py_array : public py_object {
     inline void *data() const         { return PyArray_DATA(aptr()); }
     inline int type() const           { return PyArray_TYPE(aptr()); }
 
+    inline int ncontig() const;
+
     // FIXME use std::initializer_list here, to define py_array::make<float> ({2,3,4});
     template<typename T> static inline py_array make(int ndim, const npy_intp *shape);
 
@@ -171,6 +173,28 @@ inline void py_array::_check(const char *loc)
 {
     if (!PyArray_Check(this->ptr))
 	_throw(loc);
+}
+
+
+// FIXME is there a function in the numpy C-API which computes this?
+inline int py_array::ncontig() const
+{
+    int nd = this->ndim();
+
+    if (nd == 0)
+	return 0;
+
+    npy_intp *shp = this->shape();
+    npy_intp *str = this->strides();
+    npy_intp expected_stride = this->itemsize();
+
+    for (int i = nd-1; i >= 0; i--) {
+	if (str[i] != expected_stride)
+	    return nd-1-i;
+	expected_stride *= shp[i];
+    }
+
+    return nd;
 }
 
 

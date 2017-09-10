@@ -2,6 +2,7 @@
 #define _PYCLOPS_ARRAY_HPP
 
 #include <mcpp_arrays.hpp>
+#include <complex>
 #include "core.hpp"
 
 
@@ -22,9 +23,13 @@ struct py_array : public py_object {
     inline int ndim() const           { return PyArray_NDIM(aptr()); }
     inline npy_intp *shape() const    { return PyArray_SHAPE(aptr()); }
     inline npy_intp *strides() const  { return PyArray_STRIDES(aptr()); }
+    inline npy_intp size() const      { return PyArray_SIZE(aptr()); }
     inline npy_intp itemsize() const  { return PyArray_ITEMSIZE(aptr()); }
     inline void *data() const         { return PyArray_DATA(aptr()); }
-    inline int npy_type() const       { return PyArray_TYPE(aptr()); }
+    inline int type() const           { return PyArray_TYPE(aptr()); }
+
+    // FIXME use std::initializer_list here, to define py_array::make<float> ({2,3,4});
+    template<typename T> static inline py_array make(int ndim, const npy_intp *shape);
 
     // Two versions of py_array::from_pointer(), with and without a base object.
     // Reminder: following numpy conventions, the strides should include a factor of 'itemsize'!
@@ -92,6 +97,43 @@ extern py_object make_pybase_from_mcpp_ref(const std::shared_ptr<void> &ref);
 
 // -------------------------------------------------------------------------------------------------
 //
+// npy_type<T>::id = numpy typenum corresponding to specified C++ type T (determined at compile time)
+
+
+template<typename T, int dummy=0> struct npy_type;
+
+// The "dummy" argument shouldn't be specified, and only exists so that a human-friendly error message may be prined.
+template<typename T, int dummy>
+struct npy_type {
+    static_assert(dummy, "npy_type<T>: no numpy array type could be found for requested type T");
+};
+
+// Handle 'const T'.
+template<typename T> 
+struct npy_type<const T, 0> 
+{ 
+    static constexpr int id = npy_type<T>::id; 
+};
+
+// Specific types follow.
+template<> struct npy_type<char,0> { static constexpr int id = NPY_BYTE; };
+template<> struct npy_type<int,0> { static constexpr int id = NPY_INT; };
+template<> struct npy_type<long,0> { static constexpr int id = NPY_LONG; };
+template<> struct npy_type<long long,0> { static constexpr int id = NPY_LONGLONG; };
+template<> struct npy_type<unsigned char,0> { static constexpr int id = NPY_UBYTE; };
+template<> struct npy_type<unsigned int,0> { static constexpr int id = NPY_UINT; };
+template<> struct npy_type<unsigned long,0> { static constexpr int id = NPY_ULONG; };
+template<> struct npy_type<unsigned long long,0> { static constexpr int id = NPY_ULONGLONG; };
+template<> struct npy_type<float,0> { static constexpr int id = NPY_FLOAT; };
+template<> struct npy_type<double,0> { static constexpr int id = NPY_DOUBLE; };
+template<> struct npy_type<long double,0> { static constexpr int id = NPY_LONGDOUBLE; };
+template<> struct npy_type<std::complex<float>,0> { static constexpr int id = NPY_CFLOAT; };
+template<> struct npy_type<std::complex<double>,0> { static constexpr int id = NPY_CDOUBLE; };
+template<> struct npy_type<std::complex<long double>,0>  { static constexpr int id = NPY_CLONGDOUBLE; };
+
+
+// -------------------------------------------------------------------------------------------------
+//
 // Implementation.
 
 
@@ -129,6 +171,14 @@ inline void py_array::_check(const char *loc)
 {
     if (!PyArray_Check(this->ptr))
 	_throw(loc);
+}
+
+
+template<typename T> 
+inline py_array py_array::make(int ndim, const npy_intp *shape)
+{
+    PyObject *p = PyArray_SimpleNew(ndim, const_cast<npy_intp *> (shape), npy_type<T>::id);
+    return py_array::new_reference(p);
 }
 
 

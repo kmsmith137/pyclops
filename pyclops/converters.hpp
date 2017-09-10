@@ -149,7 +149,7 @@ struct converter<mcpp_arrays::rs_array<T>> {
 	    m_strides[i] = np_strides[i] / np_itemsize;
 	}
 	
-	auto dtype = mcpp_typeid_from_npy_type(a.npy_type(), where);
+	auto dtype = mcpp_typeid_from_npy_type(a.type(), where);
 	auto ref = make_mcpp_ref_from_pybase(a._base());
 
 	mcpp_arrays::rs_array<T> ret(a.data(), ndim, m_shape, m_strides, dtype, ref, where);

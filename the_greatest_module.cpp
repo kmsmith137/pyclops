@@ -182,7 +182,7 @@ struct Derived : public Base {
 
 // Represents a Base which has been subclassed from python.
 struct PyBase : public Base {
-    PyBase(const py_object &self, const string &name) : 
+    PyBase(const string &name) : 
 	Base(name)
     { }
 
@@ -259,8 +259,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     // ----------------------------------------------------------------------
 
-    auto X_constructor1 = [](py_object self, ssize_t i) { return new X(i); };
-    auto X_constructor2 = std::function<X* (py_object,ssize_t)> (X_constructor1);
+    auto X_constructor1 = [](ssize_t i) { return new X(i); };
+    auto X_constructor2 = std::function<X* (ssize_t)> (X_constructor1);
 
     X_type.add_constructor(toy_wrap_constructor(X_constructor2));
     X_type.add_method("get", "get!", toy_wrap(&X::get));
@@ -301,8 +301,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_pure_virtual("f", "a pure virtual function", toy_wrap(&Base::f));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
-    auto Base_constructor1 = [](py_object self, string name) { return new PyBase(self, name); };
-    auto Base_constructor2 = std::function<Base* (py_object,string)> (Base_constructor1);
+    auto Base_constructor1 = [](string name) { return new PyBase(name); };
+    auto Base_constructor2 = std::function<Base* (string)> (Base_constructor1);
     Base_type.add_constructor(toy_wrap_constructor(Base_constructor2));
 
     m.add_type(Base_type);

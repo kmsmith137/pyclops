@@ -144,8 +144,9 @@ inline std::function<py_object(C*, py_tuple, py_dict)> toy_wrap(R (C::*f)(Args..
 
 
 // Wrap constructor
+// Note: previous version had a 'self' argument, but it doesn't seem to be needed, now that we have py_upcall().
 template<class C, typename... Args>
-inline std::function<C* (py_object,py_tuple,py_dict)> toy_wrap_constructor(std::function<C* (py_object,Args...)> f)
+inline std::function<C* (py_object,py_tuple,py_dict)> toy_wrap_constructor(std::function<C* (Args...)> f)
 {
     return [f](py_object self, py_tuple args, py_dict kwds) -> C*
 	{
@@ -153,7 +154,7 @@ inline std::function<C* (py_object,py_tuple,py_dict)> toy_wrap_constructor(std::
 	    if ((args.size() != sizeof...(Args)) || (kwds.size() != 0))
 		throw std::runtime_error("pyclops: wrong number of arguments to wrapped function");
 	    _func_context<C*,Args...> cargs(args);
-	    return cargs._rcall(f, self);
+	    return cargs._rcall(f);
 	};
 }
 

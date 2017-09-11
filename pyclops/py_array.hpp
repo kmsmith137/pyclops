@@ -28,6 +28,9 @@ struct py_array : public py_object {
     inline int type() const           { return PyArray_TYPE(aptr()); }
 
     inline int ncontig() const;
+    
+    inline npy_intp shape(int i) const  { return shape()[i]; }
+    inline npy_intp stride(int i) const { return strides()[i]; }
 
     // Note that the 'type' argument can be npy_type<T>::id.
     static inline py_array make(int ndim, const npy_intp *shape, int type);

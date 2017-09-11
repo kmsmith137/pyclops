@@ -1,5 +1,7 @@
 #include <vector>
+#include <algorithm>
 #include <unordered_map>
+
 #include "pyclops/core.hpp"
 
 // To enable some verbose debugging output, turn this on!

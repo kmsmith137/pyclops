@@ -2,7 +2,6 @@
 
 import numpy as np
 import numpy.random
-import pyclops
 import the_greatest_module
 
 print 'Should be 15:', the_greatest_module.add(5,10)

@@ -114,6 +114,23 @@ template<> struct converter<std::string> {
 };
 
 
+// By default the bool from-python converter is "strict", i.e. it expects either True or False.
+// FIXME define "relaxed_bool", which evaluates its argument to True/False.
+template<> struct converter<bool> {
+    static bool from_python(const py_object &x, const char *where=nullptr)
+    {
+	if (x.ptr == Py_True) return true;
+	if (x.ptr == Py_False) return false;
+	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected True or False");
+    }
+
+    static py_object to_python(bool x)
+    {
+	return x ? py_object::borrowed_reference(Py_True) : py_object::borrowed_reference(Py_False);
+    }
+};
+
+
 }  // namespace pyclops
 
 #endif  // _PYCLOPS_FROM_PYTHON_HPP

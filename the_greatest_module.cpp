@@ -8,6 +8,7 @@ using namespace pyclops;
 
 static ssize_t add(ssize_t x, ssize_t y) { return x+y; }
 
+static bool boolean_not(bool x) { return !x; }
 
 static string describe_array(py_array a)
 {
@@ -235,6 +236,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     // ----------------------------------------------------------------------
 
     m.add_function("add", toy_wrap(add));
+    m.add_function("boolean_not", toy_wrap(boolean_not));
     m.add_function("describe_array", toy_wrap(describe_array));
     m.add_function("sum_array", toy_wrap(sum_array));
     m.add_function("make_array", toy_wrap(make_array));

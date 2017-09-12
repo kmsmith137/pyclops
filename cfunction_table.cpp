@@ -253,10 +253,10 @@ int pyclops_setter(PyObject *self, PyObject *value, void *closure)
     }
     catch (std::exception &e) {
 	set_python_error(e);
-	return -1;   // FIXME is this correct?
+	return -1;
     } catch (...) {
 	PyErr_SetString(PyExc_RuntimeError, "C++ exception was thrown, but not a subclass of std::exception");
-	return -1;   // FIXME is this correct?
+	return -1;
     }
 }
 

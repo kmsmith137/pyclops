@@ -42,6 +42,7 @@ struct extension_type {
     template<typename R>
     inline void add_property(const std::string &name, const std::string &docstring, const std::function<R& (T *)> &f);
 
+    // FIXME I don't think this ever gets called!!
     inline void finalize();
 
     // These guys are intended to be wrapped by converters.

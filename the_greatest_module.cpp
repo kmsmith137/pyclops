@@ -231,6 +231,35 @@ static ssize_t f_global_Base(ssize_t n) { return g_Base ? g_Base->f(n) : 0; }
 // -------------------------------------------------------------------------------------------------
 
 
+// Let's try to wrap f_kwargs(a, b, c=2, d=3).
+static py_object f_kwargs(py_tuple args, py_dict kwds)
+{
+    static const char *kwlist[] = { "a", "b", "c", "d", NULL };
+
+    PyObject *ap = NULL;
+    PyObject *bp = NULL;
+    PyObject *cp = NULL;
+    PyObject *dp = NULL;
+
+    // Does the ":f_kwargs" actually do anything?
+    int ret = PyArg_ParseTupleAndKeywords(args.ptr, kwds.ptr, "OO|OO", const_cast<char **> (kwlist), &ap, &bp, &cp, &dp);
+    if (!ret)
+	throw pyerr_occurred();
+
+    ssize_t a = converter<ssize_t>::from_python(py_object::borrowed_reference(ap));
+    ssize_t b = converter<ssize_t>::from_python(py_object::borrowed_reference(bp));
+    ssize_t c = cp ? converter<ssize_t>::from_python(py_object::borrowed_reference(cp)) : 2;
+    ssize_t d = dp ? converter<ssize_t>::from_python(py_object::borrowed_reference(dp)) : 3;
+    
+    cout << "a=" << a << ", b=" << b << ", c=" << c << ", d=" << d << endl;
+    return py_object();  // None
+}
+
+
+// -------------------------------------------------------------------------------------------------
+
+
+
 PyMODINIT_FUNC initthe_greatest_module(void)
 {
     import_array();
@@ -311,6 +340,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_function("set_global_Base", toy_wrap(set_global_Base));
     m.add_function("clear_global_Base", toy_wrap(clear_global_Base));
     m.add_function("f_global_Base", toy_wrap(f_global_Base));
+
+    m.add_function("f_kwargs", f_kwargs);
 
     m.finalize();
 }

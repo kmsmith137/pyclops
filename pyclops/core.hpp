@@ -94,6 +94,10 @@ struct py_tuple : public py_object {
 
     inline void _check(const char *where=NULL);
     static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
+
+    // For convenience in pyclops/functional_wrappers.hpp.
+    // Returns borrowed reference.
+    inline PyObject *_get_item(ssize_t pos) const;
 };
 
 
@@ -115,6 +119,10 @@ struct py_dict : public py_object {
 
     inline void _check(const char *where=NULL);
     static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
+
+    // For convenience in pyclops/functional_wrappers.hpp.
+    // Returns borrowed reference.  If key is not found, returns NULL without setting an exception.
+    inline PyObject *_get_item(const char *key) const;
 };
 
 
@@ -272,6 +280,11 @@ inline py_object py_tuple::get_item(ssize_t pos) const
     return py_object::borrowed_reference(PyTuple_GetItem(this->ptr, pos));
 }
 
+inline PyObject *py_tuple::_get_item(ssize_t pos) const
+{
+    return PyTuple_GetItem(this->ptr, pos);
+}
+
 inline void py_tuple::set_item(ssize_t pos, const py_object &x)
 {
     int err = PyTuple_SetItem(this->ptr, pos, x.ptr);
@@ -359,6 +372,11 @@ inline void py_dict::_check(const char *where)
 {
     if (!PyDict_Check(this->ptr))
 	_throw(where);
+}
+
+inline PyObject *py_dict::_get_item(const char *key) const
+{
+    return PyDict_GetItemString(this->ptr, key);
 }
 
 

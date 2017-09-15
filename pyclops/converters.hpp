@@ -23,7 +23,7 @@ namespace pyclops {
 //
 // FIXME: this API can probably be improved!
 //
-// Reminder: the primary template converter<T> is declared in pyclops/py_object.hpp.
+// Note: the primary template converter<T> is declared in pyclops/core.hpp.
 
 
 // -------------------------------------------------------------------------------------------------

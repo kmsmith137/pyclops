@@ -6,7 +6,7 @@ using namespace std;
 using namespace pyclops;
 
 
-static ssize_t add(ssize_t x, ssize_t y) { return x+y; }
+static int add(int x, int y) { return x+y; }
 
 static bool boolean_not(bool x) { return !x; }
 

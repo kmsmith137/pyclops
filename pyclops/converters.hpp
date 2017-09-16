@@ -14,16 +14,24 @@ namespace pyclops {
 #endif
 
 
-// For each type T, we define static member functions
+// For each type T, we define:
 //
-// struct converter<T> {
-//    static T from_python(const py_object &x, const char *where=nullptr);
-//    static py_object to_python(const T & x);
-// };
+//   struct converter<T> {
+//      static inline T from_python(const py_object &x, const char *where=nullptr);
+//      static inline py_object to_python(const T & x);
+//   };
 //
-// FIXME: this API can probably be improved!
+// It is also useful to define "predicated" converters which apply to all types T which
+// satisfy a boolean condition.  For example, a converter which applies to all integral
+// types.  This can be done with the following awkward and not-very-intuitive boilerplate:
 //
-// Note: the primary template converter<T> is declared in pyclops/core.hpp.
+//   template<typename T>
+//   struct predicated_converter<T, typename std::enable_if<P,int>::type>
+//
+// where P is a boolean predicate (for example std::is_integral<T>::value).
+// FIXME: is there a more intuitive way to define predicated_converter?
+//
+// Note: the 'converter' and 'predicated_converter' primary templates are defined in pyclops/core.hpp.
 
 
 // -------------------------------------------------------------------------------------------------
@@ -66,8 +74,10 @@ template<> struct converter<py_type> {
 // Some fundamental types (integers, floating-point, strings, etc.)
 
 
-template<> struct converter<ssize_t> {
-    static ssize_t from_python(const py_object &x, const char *where=nullptr)
+template<typename T>
+struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::value,int>::type>
+{
+    static inline T from_python(const py_object &x, const char *where=nullptr)
     {
 	ssize_t n = PyInt_AsSsize_t(x.ptr);
 	if ((n == -1) && PyErr_Occurred())
@@ -75,7 +85,7 @@ template<> struct converter<ssize_t> {
 	return n;
     }
 
-    static py_object to_python(const ssize_t &x) 
+    static inline py_object to_python(const T &x) 
     {    
 	return py_object::new_reference(PyInt_FromSsize_t(x));
     }

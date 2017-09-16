@@ -115,8 +115,9 @@ struct X {
 // Declare X type object.
 static extension_type<X> X_type("X", "The awesome X class");
 
-template<> struct xconverter<X> { static constexpr extension_type<X> *type = &X_type; };
-
+namespace pyclops {
+    template<> struct xconverter<X> { static constexpr extension_type<X> *type = &X_type; };
+}
 
 // -------------------------------------------------------------------------------------------------
 
@@ -170,7 +171,9 @@ static shared_ptr<Base> make_derived(ssize_t m)
 // Declare Base type object
 static extension_type<Base> Base_type("Base", "This base class has a pure virtual function.");
 
-template<> struct xconverter<Base> { static constexpr extension_type<Base> *type = &Base_type; };
+namespace pyclops {
+    template<> struct xconverter<Base> { static constexpr extension_type<Base> *type = &Base_type; };
+}
 
 static shared_ptr<Base> g_Base;
 static void set_global_Base(shared_ptr<Base> b) { g_Base = b; }

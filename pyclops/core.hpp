@@ -17,7 +17,7 @@ namespace pyclops {
 
 
 // See pyclops/converters.hpp.
-template<typename T, typename I=int> struct predicated_converter;
+template<typename T, typename I=int> struct predicated_converter { };
 template<typename T> struct converter : predicated_converter<T> { };
 
 // Forward declarations needed below.

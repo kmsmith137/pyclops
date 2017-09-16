@@ -36,6 +36,25 @@ namespace pyclops {
 
 // -------------------------------------------------------------------------------------------------
 //
+// These type_traits can be used to test whether a converter exists.
+
+
+template<typename T, typename = T>
+struct converts_from_python : std::false_type { };
+
+template<typename T>
+struct converts_from_python<T, decltype(converter<T>::from_python(std::declval<py_object>()))> : std::true_type { };
+
+
+template<typename T, typename = py_object>
+struct converts_to_python : std::false_type { };
+
+template<typename T>
+struct converts_to_python<T, decltype(converter<T>::to_python(std::declval<const T>()))> : std::true_type { };
+
+
+// -------------------------------------------------------------------------------------------------
+//
 // Trivial "converters" which operate on subclasses of py_object.
 //
 // It is assumed that each such subclass T has a special constructor of the form
@@ -62,7 +81,9 @@ template<> struct converter<py_object> {
 
 
 // predicated_converter for integral types, except 'bool' which is a special case below.
+// FIXME should also have special case for char (to convert from python length-1 string)?
 // FIXME incorporate climits here.
+
 template<typename T>
 struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::value,int>::type>
 {
@@ -119,6 +140,7 @@ struct predicated_converter<T, typename std::enable_if<std::is_floating_point<T>
 
 
 // string converter
+// FIXME: write a converter so that functions with (const char *) args are wrappable.
 template<> struct converter<std::string> {
     static std::string from_python(const py_object &x, const char *where=nullptr)
     {

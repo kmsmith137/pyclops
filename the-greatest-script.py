@@ -12,6 +12,9 @@ s1 = the_greatest_module.sum_array(a)
 s2 = a.sum()
 print 'The following should be equal:', s1, s2
 
+a = [ [ 1, 2, 3 ], [ 4, 5, 6 ] ]
+print 'Should equal 21:', the_greatest_module.sum_array(a)
+
 a = the_greatest_module.make_array((2,3,4))
 print 'Output of make_array() follows'
 print a

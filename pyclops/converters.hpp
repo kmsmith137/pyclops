@@ -36,36 +36,23 @@ namespace pyclops {
 
 // -------------------------------------------------------------------------------------------------
 //
-// Built-in py_object subclasses.
-// FIXME any way to use template magic to improve the declarations below?
+// Trivial "converters" which operate on subclasses of py_object.
 //
-// E.g., if a class defines a constructor with args (const py_object &x, const char *where),
-// can we arrange things so that it is automatically used as the converter?
+// It is assumed that each such subclass T has a special constructor of the form
+//   T(const py_object &x, const char *where);
 
 
+template<typename T>
+struct predicated_converter<T, typename std::enable_if<std::is_base_of<py_object,T>::value,int>::type>
+{
+    static inline T from_python(const py_object &x, const char *where=nullptr) { return T(x,where); }
+    static inline py_object to_python(const T &x) { return x; }
+};
+
+// py_object is a special case, since it doesn't define the "special" contructor described above.
 template<> struct converter<py_object> {
     static py_object from_python(const py_object &x, const char *where=nullptr) { return x; }
     static py_object to_python(const py_object &x) { return x; }
-};
-
-template<> struct converter<py_tuple> {
-    static py_tuple from_python(const py_object &x, const char *where=nullptr) { return py_tuple(x,where); }
-    static py_object to_python(const py_tuple &x) { return x; }
-};
-
-template<> struct converter<py_dict> {
-    static py_dict from_python(const py_object &x, const char *where=nullptr) { return py_dict(x,where); }
-    static py_object to_python(const py_dict &x) { return x; }
-};
-
-template<> struct converter<py_array> {
-    static py_array from_python(const py_object &x, const char *where=nullptr) { return py_array(x,where); }
-    static py_object to_python(const py_array &x) { return x; }
-};
-
-template<> struct converter<py_type> {
-    static py_type from_python(const py_object &x, const char *where=nullptr) { return py_type(x,where); }
-    static py_object to_python(const py_type &x) { return x; }
 };
 
 
@@ -74,6 +61,7 @@ template<> struct converter<py_type> {
 // Some fundamental types (integers, floating-point, strings, etc.)
 
 
+// This converter works for all integral types, except 'bool' which is a special case below.
 template<typename T>
 struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::value,int>::type>
 {
@@ -88,6 +76,24 @@ struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::valu
     static inline py_object to_python(const T &x) 
     {    
 	return py_object::new_reference(PyInt_FromSsize_t(x));
+    }
+};
+
+
+// bool converter.
+// By default the bool from-python converter is "strict", i.e. it expects either True or False.
+// FIXME define "relaxed_bool", which evaluates its argument to True/False.
+template<> struct converter<bool> {
+    static bool from_python(const py_object &x, const char *where=nullptr)
+    {
+	if (x.ptr == Py_True) return true;
+	if (x.ptr == Py_False) return false;
+	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected True or False");
+    }
+
+    static py_object to_python(bool x)
+    {
+	return x ? py_object::borrowed_reference(Py_True) : py_object::borrowed_reference(Py_False);
     }
 };
 
@@ -120,23 +126,6 @@ template<> struct converter<std::string> {
     static py_object to_python(const std::string &x)
     {
 	return py_object::new_reference(PyString_FromString(x.c_str()));
-    }
-};
-
-
-// By default the bool from-python converter is "strict", i.e. it expects either True or False.
-// FIXME define "relaxed_bool", which evaluates its argument to True/False.
-template<> struct converter<bool> {
-    static bool from_python(const py_object &x, const char *where=nullptr)
-    {
-	if (x.ptr == Py_True) return true;
-	if (x.ptr == Py_False) return false;
-	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected True or False");
-    }
-
-    static py_object to_python(bool x)
-    {
-	return x ? py_object::borrowed_reference(Py_True) : py_object::borrowed_reference(Py_False);
     }
 };
 

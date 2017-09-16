@@ -2,6 +2,7 @@
 #define _PYCLOPS_EXTENSION_TYPE_HPP
 
 #include "core.hpp"
+#include "converters.hpp"
 #include "cfunction_table.hpp"
 #include "functional_wrappers.hpp"
 
@@ -66,6 +67,64 @@ struct extension_type {
 // This version takes 'py_tuple' args and returns a py_object.
 // FIXME will write py_upcall() later - this will be a variadic template which applies converters.
 inline py_object _py_upcall(void *self, const char *meth_name, const py_tuple &args);
+
+
+
+// -------------------------------------------------------------------------------------------------
+//
+// xconverter: used to define converters for extension_types.
+//
+// FIXME should this code be moved elsewhere?
+// FIXME 'xconverter' needs better name!
+
+
+// expects 'static constexpr extension_type<T> *type = ...'
+template<typename T> struct xconverter;
+
+
+template<typename T, typename = extension_type<T> * const>
+struct has_xconverter : std::false_type { };
+
+template<typename T>
+struct has_xconverter<T, decltype(xconverter<T>::type)> : std::true_type { };
+
+
+// FIXME invokes copy constructors - should diasable this template if no copy constructors defined.
+// Even if copy constructors are defined, they may be a hidden source of overhead - should there be a boolean
+// flag somewhere to enable this template?
+
+template<typename T>
+struct predicated_converter<T, typename std::enable_if<has_xconverter<T>::value,int>::type>
+{
+    static inline T from_python(const py_object &x, const char *where=nullptr)
+    {
+	// FIXME shared_ptr_from_python() should be member function
+	auto p = extension_type<T>::shared_ptr_from_python(xconverter<T>::type->tobj, x, where);
+	return *p;
+    }
+
+    static inline py_object to_python(const T &x)
+    {
+	auto p = std::make_shared<T> (x);
+	return extension_type<T>::to_python(xconverter<T>::type->tobj, p);
+    }
+};
+
+
+template<typename T>
+struct predicated_converter<std::shared_ptr<T>, typename std::enable_if<has_xconverter<T>::value,int>::type>
+{
+    static std::shared_ptr<T> from_python(const py_object &obj, const char *where=nullptr)
+    {
+	return extension_type<T>::shared_ptr_from_python(xconverter<T>::type->tobj, obj, where);
+    }
+	
+    static py_object to_python(const std::shared_ptr<T> &x)
+    {
+	return extension_type<T>::to_python(xconverter<T>::type->tobj, x);
+    }
+};
+
 
 
 // -------------------------------------------------------------------------------------------------

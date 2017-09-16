@@ -115,41 +115,7 @@ struct X {
 // Declare X type object.
 static extension_type<X> X_type("X", "The awesome X class");
 
-
-// Converters for working with X objects (not X& references).
-// Using these will lead to many unnecessary copy constructors!
-namespace pyclops {
-    template<>
-    struct converter<X> {
-	static X from_python(const py_object &obj, const char *where=nullptr)
-	{
-	    auto p = extension_type<X>::shared_ptr_from_python(X_type.tobj, obj, where);
-	    return *p;
-	}
-	
-	static py_object to_python(const X &x)
-	{
-	    auto p = make_shared<X> (x);
-	    return extension_type<X>::to_python(X_type.tobj, p);
-	}
-    };
-    
-
-    // Converters for working with shared_ptr<X> objects.
-    // Using these will lead to many shared_ptr<X>() copy constructors, but no X() copy constructors.
-    template<>
-    struct converter<shared_ptr<X>> {
-	static shared_ptr<X> from_python(const py_object &obj, const char *where=nullptr)
-	{
-	    return extension_type<X>::shared_ptr_from_python(X_type.tobj, obj, where);
-	}
-	
-	static py_object to_python(const shared_ptr<X> &x)
-	{
-	    return extension_type<X>::to_python(X_type.tobj, x);
-	}
-    };
-} // namespace pyclops
+template<> struct xconverter<X> { static constexpr extension_type<X> *type = &X_type; };
 
 
 // -------------------------------------------------------------------------------------------------
@@ -204,25 +170,9 @@ static shared_ptr<Base> make_derived(ssize_t m)
 // Declare Base type object
 static extension_type<Base> Base_type("Base", "This base class has a pure virtual function.");
 
-
-namespace pyclops {
-    template<>
-    struct converter<shared_ptr<Base>> {
-	static shared_ptr<Base> from_python(const py_object &obj, const char *where=nullptr)
-	{
-	    return extension_type<Base>::shared_ptr_from_python(Base_type.tobj, obj, where);
-	}
-	
-	static py_object to_python(const shared_ptr<Base> &x)
-	{
-	    return extension_type<Base>::to_python(Base_type.tobj, x);
-	}
-    };
-} // namespace pyclops
-
+template<> struct xconverter<Base> { static constexpr extension_type<Base> *type = &Base_type; };
 
 static shared_ptr<Base> g_Base;
-
 static void set_global_Base(shared_ptr<Base> b) { g_Base = b; }
 static void clear_global_Base() { g_Base.reset(); }
 static ssize_t f_global_Base(ssize_t n) { return g_Base ? g_Base->f(n) : 0; }

@@ -135,6 +135,7 @@ template<> struct converter<std::string> {
 };
 
 
+
 }  // namespace pyclops
 
 #endif  // _PYCLOPS_FROM_PYTHON_HPP

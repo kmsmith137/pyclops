@@ -61,7 +61,8 @@ template<> struct converter<py_object> {
 // Some fundamental types (integers, floating-point, strings, etc.)
 
 
-// This converter works for all integral types, except 'bool' which is a special case below.
+// predicated_converter for integral types, except 'bool' which is a special case below.
+// FIXME incorporate climits here.
 template<typename T>
 struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::value,int>::type>
 {
@@ -98,8 +99,11 @@ template<> struct converter<bool> {
 };
 
 
-template<> struct converter<double> {
-    static double from_python(const py_object &x, const char *where=nullptr)
+// predicated_converter for floating-point types
+template<typename T>
+struct predicated_converter<T, typename std::enable_if<std::is_floating_point<T>::value,int>::type>
+{
+    static inline T from_python(const py_object &x, const char *where=nullptr)
     {
 	double ret = PyFloat_AsDouble(x.ptr);
 	if ((ret == -1.0) && PyErr_Occurred())
@@ -107,13 +111,14 @@ template<> struct converter<double> {
 	return ret;
     }
 
-    static py_object to_python(const double &x)
+    static inline py_object to_python(const T &x)
     {
 	return py_object::new_reference(PyFloat_FromDouble(x));
     }
 };
 
 
+// string converter
 template<> struct converter<std::string> {
     static std::string from_python(const py_object &x, const char *where=nullptr)
     {

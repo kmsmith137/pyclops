@@ -89,24 +89,13 @@ template<typename T>
 struct has_xconverter<T, decltype(xconverter<T>::type)> : std::true_type { };
 
 
-// FIXME invokes copy constructors - should diasable this template if no copy constructors defined.
-// Even if copy constructors are defined, they may be a hidden source of overhead - should there be a boolean
-// flag somewhere to enable this template?
-
 template<typename T>
-struct predicated_converter<T, typename std::enable_if<has_xconverter<T>::value,int>::type>
+struct predicated_converter<T&, typename std::enable_if<has_xconverter<T>::value,int>::type>
 {
-    static inline T from_python(const py_object &x, const char *where=nullptr)
+    static inline T& from_python(const py_object &x, const char *where=nullptr)
     {
-	// FIXME shared_ptr_from_python() should be member function
 	auto p = extension_type<T>::shared_ptr_from_python(xconverter<T>::type->tobj, x, where);
 	return *p;
-    }
-
-    static inline py_object to_python(const T &x)
-    {
-	auto p = std::make_shared<T> (x);
-	return extension_type<T>::to_python(xconverter<T>::type->tobj, p);
     }
 };
 
@@ -125,6 +114,20 @@ struct predicated_converter<std::shared_ptr<T>, typename std::enable_if<has_xcon
     }
 };
 
+
+// FIXME invokes copy constructor - should diasable this template if no copy constructor defined.
+// Even if copy constructor is defined, it may be a hidden source of overhead - should there be a boolean
+// flag somewhere to enable this template?
+
+template<typename T>
+struct predicated_converter<T, typename std::enable_if<has_xconverter<T>::value,int>::type>
+{
+    static inline py_object to_python(const T &x)
+    {
+	auto p = std::make_shared<T> (x);
+	return extension_type<T>::to_python(xconverter<T>::type->tobj, p);
+    }
+};
 
 
 // -------------------------------------------------------------------------------------------------

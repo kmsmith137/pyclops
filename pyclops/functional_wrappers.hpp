@@ -71,8 +71,8 @@ struct argname_hash {
 };
 
 
-extern std::exception bad_arg_count(int n_given, int n_min, int n_max);
-extern std::exception missing_arg(const char *arg_name);
+extern std::runtime_error bad_arg_count(int n_given, int n_min, int n_max);
+extern std::runtime_error missing_arg(const char *arg_name);
 
 
 // -------------------------------------------------------------------------------------------------

@@ -25,6 +25,7 @@ INCFILES = \
 
 OFILES = cfunction_table.o \
   extension_module.o \
+  functional_wrappers.o \
   master_hash_table.o \
   numpy_array.o \
   exceptions.o

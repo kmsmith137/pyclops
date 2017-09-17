@@ -221,31 +221,27 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     // ----------------------------------------------------------------------
 
-    m.add_function("add", toy_wrap(add));
-    m.add_function("boolean_not", toy_wrap(boolean_not));
-    m.add_function("describe_array", toy_wrap(describe_array));
-    m.add_function("sum_array", toy_wrap(sum_array));
-    m.add_function("make_array", toy_wrap(make_array));
-    m.add_function("add_21", toy_wrap(add_21));
-    m.add_function("print_float", toy_wrap(print_float));
+    m.add_function("add", wrap_func(add, "x", "y"));
+    m.add_function("boolean_not", wrap_func(boolean_not, "x"));
+    m.add_function("describe_array", wrap_func(describe_array, "a"));
+    m.add_function("sum_array", wrap_func(sum_array, "a"));
+    m.add_function("make_array", wrap_func(make_array, "dims"));
+    m.add_function("add_21", wrap_func(add_21, "a", "t"));
+    m.add_function("print_float", wrap_func(print_float, "x"));
 
-    auto get_basicsize = [](py_type t) -> ssize_t { return t.get_basicsize(); };
-    auto make_tuple = []() -> py_tuple { return py_tuple::make(ssize_t(2), 3.5, string("hi")); };
+    std::function<ssize_t(py_type)> get_basicsize = [](py_type t) { return t.get_basicsize(); };
+    std::function<py_tuple()> make_tuple = []() { return py_tuple::make(ssize_t(2), 3.5, string("hi")); };
 
-    m.add_function("get_basicsize",
-		   toy_wrap(std::function<ssize_t(py_type)> (get_basicsize)));
-
-    m.add_function("make_tuple",
-		   toy_wrap(std::function<py_tuple()> (make_tuple)));
-
+    m.add_function("get_basicsize", wrap_func(get_basicsize, "t"));
+    m.add_function("make_tuple", wrap_func(make_tuple));
 
     // ----------------------------------------------------------------------
 
     auto X_constructor1 = [](ssize_t i) { return new X(i); };
     auto X_constructor2 = std::function<X* (ssize_t)> (X_constructor1);
 
-    X_type.add_constructor(toy_wrap_constructor(X_constructor2));
-    X_type.add_method("get", "get!", toy_wrap(&X::get));
+    X_type.add_constructor(wrap_constructor(X_constructor2, "i"));
+    X_type.add_method("get", "get!", wrap_method(&X::get));
 
     std::function<ssize_t(const X *x)> X_xget = [](const X *x) { return x->x; };
     X_type.add_property("xget", "get x!", X_xget);
@@ -255,44 +251,35 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     m.add_type(X_type);
 
-    auto make_X = [](ssize_t i) -> X { return X(i); };
-    auto get_X = [](X x) -> ssize_t { return x.get(); };
-    auto make_Xp = [](ssize_t i) -> shared_ptr<X> { return make_shared<X> (i); };
-    auto get_Xp = [](shared_ptr<X> x) -> ssize_t { return x->get(); };
-    auto clone_Xp = [](shared_ptr<X> x) -> shared_ptr<X> { return x; };
+    std::function<X(ssize_t)> make_X = [](ssize_t i) { return X(i); };
+    std::function<ssize_t(X)> get_X = [](X x) { return x.get(); };
+    std::function<shared_ptr<X>(ssize_t)> make_Xp = [](ssize_t i) { return make_shared<X> (i); };
+    std::function<ssize_t(shared_ptr<X>)> get_Xp = [](shared_ptr<X> x) { return x->get(); };
+    std::function<shared_ptr<X>(shared_ptr<X>)> clone_Xp = [](shared_ptr<X> x) { return x; };
 
-    m.add_function("make_X",
-		   toy_wrap(std::function<X(ssize_t)> (make_X)));
-
-    m.add_function("get_X",
-		   toy_wrap(std::function<ssize_t(X)> (get_X)));
-
-    m.add_function("make_Xp",
-		   toy_wrap(std::function<shared_ptr<X>(ssize_t)> (make_Xp)));
-
-    m.add_function("get_Xp",
-		   toy_wrap(std::function<ssize_t(shared_ptr<X>)> (get_Xp)));
-
-    m.add_function("clone_Xp",
-		   toy_wrap(std::function<shared_ptr<X>(shared_ptr<X>)> (clone_Xp)));
+    m.add_function("make_X", wrap_func(make_X, "i"));
+    m.add_function("get_X", wrap_func(get_X, "x"));
+    m.add_function("make_Xp", wrap_func(make_Xp, "i"));
+    m.add_function("get_Xp", wrap_func(get_Xp, "x"));
+    m.add_function("clone_Xp", wrap_func(clone_Xp, "x"));
 
     // ----------------------------------------------------------------------
 
-    Base_type.add_method("get_name", "get the name!", toy_wrap(&Base::get_name));
-    Base_type.add_method("f_cpp", "forces call to f() to go through C++", toy_wrap(&Base::f_cpp));
-    Base_type.add_pure_virtual("f", "a pure virtual function", toy_wrap(&Base::f));
+    Base_type.add_method("get_name", "get the name!", wrap_method(&Base::get_name));
+    Base_type.add_method("f_cpp", "forces call to f() to go through C++", wrap_method(&Base::f_cpp, "n"));
+    Base_type.add_pure_virtual("f", "a pure virtual function", wrap_method(&Base::f, "n"));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
     auto Base_constructor1 = [](string name) { return new PyBase(name); };
     auto Base_constructor2 = std::function<Base* (string)> (Base_constructor1);
-    Base_type.add_constructor(toy_wrap_constructor(Base_constructor2));
+    Base_type.add_constructor(wrap_constructor(Base_constructor2, "name"));
 
     m.add_type(Base_type);
 
-    m.add_function("make_derived", toy_wrap(make_derived));
-    m.add_function("set_global_Base", toy_wrap(set_global_Base));
-    m.add_function("clear_global_Base", toy_wrap(clear_global_Base));
-    m.add_function("f_global_Base", toy_wrap(f_global_Base));
+    m.add_function("make_derived", wrap_func(make_derived, "m"));
+    m.add_function("set_global_Base", wrap_func(set_global_Base, "b"));
+    m.add_function("clear_global_Base", wrap_func(clear_global_Base));
+    m.add_function("f_global_Base", wrap_func(f_global_Base, "n"));
 
     m.add_function("f_kwargs", f_kwargs);
 

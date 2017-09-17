@@ -321,6 +321,8 @@ inline void _set_tuple(py_tuple &t, int pos, A a, Ap... ap)
 }
 
 // Static constructor-like member function.
+// FIXME: improve using the new fancy templates in functional_wrappers.hpp (maybe
+// py_tuple::make() should move to this source file?)
 template<typename... Args>
 inline py_tuple py_tuple::make(Args... args)
 {

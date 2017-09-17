@@ -16,7 +16,7 @@ namespace pyclops {
 // This function gets called if (n_given < nmin) or (n_given > n_max).
 // I got a little carried away here, making the error messages exactly the same as the python interpreter!
 
-runtime_error bad_arg_count(int n_given, int n_min, int n_max)
+std::runtime_error bad_arg_count(int n_given, int n_min, int n_max)
 {
     stringstream ss;
 
@@ -42,7 +42,7 @@ runtime_error bad_arg_count(int n_given, int n_min, int n_max)
 }
 
 
-runtime_error missing_arg(const char *arg_name)
+std::runtime_error missing_arg(const char *arg_name)
 {
     return runtime_error("function argument '" + string(arg_name) + "' must be specified");
 }

@@ -183,7 +183,7 @@ struct converter<in_array<T>>
 template<typename T>
 struct converter<in_carray<T>>
 {
-    static in_array<T> from_python(const py_object &x, const char *where=nullptr) 
+    static in_carray<T> from_python(const py_object &x, const char *where=nullptr) 
     {
 	return py_array::from_sequence(x, npy_type<T>::id, in_array<T>::default_flags | NPY_ARRAY_C_CONTIGUOUS);
     }
@@ -283,7 +283,7 @@ struct converter<io_array<T>>
 template<typename T>
 struct converter<io_carray<T>>
 {
-    static io_array<T> from_python(const py_object &x, const char *where=nullptr) 
+    static io_carray<T> from_python(const py_object &x, const char *where=nullptr) 
     {
 	return py_array::from_sequence(x, npy_type<T>::id, io_array<T>::default_flags | NPY_ARRAY_C_CONTIGUOUS);
     }

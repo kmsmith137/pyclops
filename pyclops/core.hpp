@@ -149,6 +149,8 @@ struct pyerr_occurred : std::exception
 
 extern void master_hash_table_add(const void *cptr, PyObject *pptr);
 extern void master_hash_table_remove(const void *cptr, PyObject *pptr);
+
+// Returns borrowed reference.
 extern PyObject *master_hash_table_query(const void *cptr);
 
 // Custom shared_ptr<> deleter.

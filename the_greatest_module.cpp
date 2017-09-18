@@ -126,10 +126,15 @@ struct Base {
     const string name;
     Base(const string &name_) : name(name_) { }    
 
-    virtual ssize_t f(ssize_t n) = 0;
-
     string get_name() { return name; }
-    ssize_t f_cpp(ssize_t n) { return f(n); }   // Forces call to f() to go through C++ code
+
+    // f() is pure virtual
+    virtual ssize_t f(ssize_t n) = 0;
+    ssize_t f_cpp(ssize_t n) { return f(n); }   // Forces call to f() to go through C++ code.
+
+    // g() is virtual, but not pure virtual
+    virtual ssize_t g(ssize_t n) { return 10*n; }
+    ssize_t g_cpp(ssize_t n) { return g(n); }   // Forces call to g() to go through C++ code.
 };
 
 // Helper function for Derived constructor.
@@ -147,17 +152,35 @@ struct Derived : public Base {
 };
 
 
-// Represents a Base which has been subclassed from python.
+// -------------------------------------------------------------------------------------------------
+
+// Declare Base type object
+static extension_type<Base> Base_type("Base", "This base class has a pure virtual function.");
+
+namespace pyclops {
+    template<> struct xconverter<Base> { static constexpr extension_type<Base> *type = &Base_type; };
+}
+
+// "Upcalling" base class.
 struct PyBase : public Base {
     PyBase(const string &name) : 
 	Base(name)
     { }
-
+    
+    // Pure virtual
     virtual ssize_t f(ssize_t n) override
     {
-	py_tuple args = py_tuple::make(n);
-	py_object ret = _py_upcall(this, "f", args);
-	return converter<ssize_t>::from_python(ret, "Base.f");
+	pure_virtual_function<Base> v(Base_type, this, "f");
+	return v.upcall<ssize_t> (n);
+    }
+
+    // Non pure virtual
+    virtual ssize_t g(ssize_t n) override
+    {
+	virtual_function<Base> v(Base_type, this, "g");
+	if (v.exists)
+	    return v.upcall<ssize_t> (n);
+	return Base::g(n);
     }
 }; 
 
@@ -168,17 +191,11 @@ static shared_ptr<Base> make_derived(ssize_t m)
 }
 
 
-// Declare Base type object
-static extension_type<Base> Base_type("Base", "This base class has a pure virtual function.");
-
-namespace pyclops {
-    template<> struct xconverter<Base> { static constexpr extension_type<Base> *type = &Base_type; };
-}
-
 static shared_ptr<Base> g_Base;
 static void set_global_Base(shared_ptr<Base> b) { g_Base = b; }
 static void clear_global_Base() { g_Base.reset(); }
 static ssize_t f_global_Base(ssize_t n) { return g_Base ? g_Base->f(n) : 0; }
+
 
 
 // -------------------------------------------------------------------------------------------------
@@ -248,8 +265,10 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     // ----------------------------------------------------------------------
 
     Base_type.add_method("get_name", "get the name!", wrap_method(&Base::get_name));
+    Base_type.add_method("f", "a pure virtual function", wrap_method(&Base::f, "n"));
     Base_type.add_method("f_cpp", "forces call to f() to go through C++", wrap_method(&Base::f_cpp, "n"));
-    Base_type.add_pure_virtual("f", "a pure virtual function", wrap_method(&Base::f, "n"));
+    Base_type.add_method("g", "a virtual function, but not pure virtual", wrap_method(&Base::g, "n"));
+    Base_type.add_method("g_cpp", "forces call to g() to go through C++", wrap_method(&Base::g_cpp, "n"));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
     auto Base_constructor1 = [](string name) { return new PyBase(name); };

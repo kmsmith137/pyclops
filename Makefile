@@ -21,7 +21,8 @@ INCFILES = \
   pyclops/internals.hpp \
   pyclops/py_array.hpp \
   pyclops/py_type.hpp \
-  pyclops/py_weakref.hpp
+  pyclops/py_weakref.hpp \
+  pyclops/virtual_function.hpp
 
 OFILES = cfunction_table.o \
   extension_module.o \

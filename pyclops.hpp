@@ -15,5 +15,6 @@
 #include "pyclops/extension_type.hpp"
 #include "pyclops/extension_module.hpp"
 #include "pyclops/functional_wrappers.hpp"
+#include "pyclops/virtual_function.hpp"
 
 #endif  // _PYCLOPS_HPP

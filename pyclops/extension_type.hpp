@@ -23,10 +23,7 @@ struct extension_type {
 
     inline void add_constructor(std::function<T* (py_object,py_tuple,py_dict)> f);
 
-    // FIXME: decide whether the "self" argument of the C++ method should be (T *), as currently assumed, or shared_ptr<T>.
-    // FIXME: currently "fragile", in the sense that if add_method() is called when add_pure_virtual() is needed, the result will be an infinite loop!
-    inline void add_method(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f, bool pure_virtual=false);
-    inline void add_pure_virtual(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f);
+    inline void add_method(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f);
 
     // General property API.
     inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get);
@@ -260,7 +257,7 @@ inline void extension_type<T>::add_constructor(std::function<T* (py_object, py_t
 
 
 template<typename T>
-inline void extension_type<T>::add_method(const std::string &name, const std::string &docstring, std::function<py_object(T*,py_tuple,py_dict)> f, bool pure_virtual)
+inline void extension_type<T>::add_method(const std::string &name, const std::string &docstring, std::function<py_object(T*,py_tuple,py_dict)> f)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_method() was called after finalize()");
@@ -268,25 +265,13 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
     char *fname = strdup(name.c_str());
     PyTypeObject *tp = this->tobj;
 
-    auto py_method = [f,tp,fname,pure_virtual](py_object self, py_tuple args, py_dict kwds) -> py_object {
+    auto py_method = [f,tp,fname](py_object self, py_tuple args, py_dict kwds) -> py_object {
 	if (!PyObject_IsInstance(self.ptr, (PyObject *) tp))
 	    throw std::runtime_error(std::string(tp->tp_name) + "." + fname + ": expected 'self' of type " + tp->tp_name);
 
 	auto *wp = reinterpret_cast<class_wrapper<T> *> (self.ptr);
 	if (!wp->p)
 	    throw std::runtime_error(std::string(tp->tp_name) + ".__init__() was never called (probably missing call in subclass constructor");
-
-	bool is_python_managed = !wp->ref;
-
-	// For pure virtual functions, this simple mechanism suffices to prevent an infinite loop.
-	// FIXME: for non-pure virtuals, something different is needed!
-	// FIXME: currently "fragile", in the sense that if add_method() is called when add_pure_virtual() is needed, the result will be an infinite loop!
-
-	if (pure_virtual && is_python_managed) {
-	    PyTypeObject *sp = self.ptr->ob_type;
-	    const char *sp_name = sp ? sp->tp_name : "";
-	    throw std::runtime_error(std::string(fname) + "() must be defined in python subclass " + sp_name + ", in order to override pure virtual in C++ base class " + tp->tp_name);
-	}
 
 	return f(wp->p, args, kwds);
     };
@@ -298,13 +283,6 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
     m.ml_doc = strdup(docstring.c_str());
 
     this->methods->push_back(m);
-}
-
-
-template<typename T>
-inline void extension_type<T>::add_pure_virtual(const std::string &name, const std::string &docstring, std::function<py_object(T*,py_tuple,py_dict)> f)
-{
-    this->add_method(name, docstring, f, true);
 }
 
 

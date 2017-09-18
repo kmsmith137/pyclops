@@ -60,9 +60,7 @@ struct extension_type {
 };
 
 
-// _py_upcall(): helper for implementing virtual functions.
-// This version takes 'py_tuple' args and returns a py_object.
-// FIXME will write py_upcall() later - this will be a variadic template which applies converters.
+// FIXME superseded by 'class virtual function', should it be removed?
 inline py_object _py_upcall(void *self, const char *meth_name, const py_tuple &args);
 
 

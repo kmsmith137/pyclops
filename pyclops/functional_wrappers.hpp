@@ -33,19 +33,27 @@ template<typename T> struct _kwarg;
 template<typename T> 
 inline _kwarg<T> kwarg(const std::string &arg_name, const T &default_val);
 
-// The four functional wrappers which follow are the "bottom line" routines
-// defined in this file.  The "args..." at the end are a list of argument specifiers,
-// which can be either strings (representing a named argument with no default value),
-// or kwarg() to specify a default value.
 
+// These functional wrappers are the "bottom line" routines defined in this file.  
+// The "args..." at the end are a list of argument specifiers, which can be either strings 
+// (representing a named argument with no default value), or kwarg() to specify a default value.
+
+
+// std::function -> python function
 template<typename R, typename... Ts, typename... Us>
 inline std::function<py_object(py_tuple,py_dict)> wrap_func(std::function<R(Ts...)> f, const Us & ... args);
 
+// (C++ function pointer) -> python function
 template<typename R, typename... Ts, typename... Us>
 inline std::function<py_object(py_tuple,py_dict)> wrap_func(R (*f)(Ts...), const Us & ... args);
 
+// (C++ member function pointer) -> python method
 template<class C, typename R, typename... Ts, typename... Us>
 inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts...), const Us & ... args);
+
+// std::function (with 'self' argument) -> python method 
+template<class C, typename R, typename... Ts, typename... Us>
+inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(std::function<R(C*,Ts...)> f, const Us & ... args);
 
 template<class C, typename... Ts, typename... Us>
 inline std::function<C* (py_object,py_tuple,py_dict)> wrap_constructor(std::function<C* (Ts...)> f, const Us & ... args);
@@ -616,7 +624,7 @@ inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts.
     using cargs_t = typename _cargs_t<Ts...>::type;
 
     static_assert(!cargs_t::converter_error, "missing from_python converter for at least one method argument");
-	
+    
     using xargs_t = typename _xargs_t<Us...>::type;
             
     static_assert(!xargs_t::type_error, "all python argument specifiers must be strings or kwarg(...)");
@@ -661,6 +669,66 @@ inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts.
 
 	    // Call method and to_python converter.
 	    return cargs.template call_method<R> (self, f);
+	};
+
+    return ret;
+}
+
+
+// This version of wrap_method() wraps a std::function, rather than a member function pointer.
+// FIXME lots of cut-and-paste here!
+
+template<class C, typename R, typename... Ts, typename... Us>
+inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(std::function<R(C*,Ts...)> f, const Us & ... args)
+{
+    using cargs_t = typename _cargs_t<Ts...>::type;
+
+    static_assert(!cargs_t::converter_error, "missing from_python converter for at least one method argument");
+    
+    using xargs_t = typename _xargs_t<Us...>::type;
+            
+    static_assert(!xargs_t::type_error, "all python argument specifiers must be strings or kwarg(...)");
+    static_assert(!xargs_t::ordering_error, "python arguments with default_vals must go at the end");
+
+    using ac = _arg_checker<cargs_t, xargs_t>;
+    
+    constexpr bool to_python_error = !converts_to_python<R>::value;
+    constexpr bool all_checks_passed = ac::valid && !to_python_error;
+
+    static_assert(!ac::count_error || (xargs_t::N > 0), "python arguments must be specified (either strings or kwarg(...))");
+    static_assert(!ac::count_error || (xargs_t::N == 0), "number of python argument specifiers doesn't match number of function arguments");
+    static_assert(!ac::convert_error, "type error when converting specified default_val to argument type of C++ function");
+    static_assert(!to_python_error, "missing to_python converter for return value from function");
+    
+    // FIXME memory leaks here (new())    
+    xargs_t *x = new xargs_t(args...);
+    argname_hash *a = new argname_hash;
+    
+    if (all_checks_passed)
+	x->add_to_argname_hash(*a);
+
+    auto ret = [f,a,x](C *self, py_tuple args, py_dict kwds) -> py_object
+	{
+	    constexpr int Nmin = xargs_t::Nmin;
+	    constexpr int Nmax = xargs_t::N;
+	    
+	    ssize_t nargs = args.size();
+	    ssize_t ntot = nargs + kwds.size();
+
+	    // Quick sanity check on argument count.
+	    if ((ntot < Nmin) || (ntot > Nmax))
+		throw bad_arg_count(ntot, Nmin, Nmax);
+
+	    // Additional checks: invalid keyword args.
+	    a->check(kwds, nargs);
+
+	    using cargs_t2 = typename std::conditional<all_checks_passed, cargs_t, _cargs_dummy>::type;
+	    
+	    // Convert all arguments from python.
+	    cargs_t2 cargs(*x, args, kwds, nargs);
+
+	    // Call method and to_python converter.
+	    return cargs.template call_func<R> (f, self);
 	};
 
     return ret;

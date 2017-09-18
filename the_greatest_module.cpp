@@ -241,6 +241,9 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     X_type.add_constructor(wrap_constructor(X_constructor2, "i"));
     X_type.add_method("get", "get!", wrap_method(&X::get));
+    
+    std::function<ssize_t(X*)> X_get2 = [](X *x) { return x->get(); };
+    X_type.add_method("get2", "get(), wrapped via std::function", wrap_method(X_get2));
 
     std::function<ssize_t(const X *x)> X_xget = [](const X *x) { return x->x; };
     X_type.add_property("xget", "get x!", X_xget);

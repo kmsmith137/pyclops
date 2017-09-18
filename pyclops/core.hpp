@@ -147,12 +147,12 @@ struct pyerr_occurred : std::exception
 // Master hash table.
 
 
-extern void master_hash_table_add(void *cptr, PyObject *pptr);
-extern void master_hash_table_remove(void *cptr, PyObject *pptr);
-extern PyObject *master_hash_table_query(void *cptr);
+extern void master_hash_table_add(const void *cptr, PyObject *pptr);
+extern void master_hash_table_remove(const void *cptr, PyObject *pptr);
+extern PyObject *master_hash_table_query(const void *cptr);
 
 // Custom shared_ptr<> deleter.
-extern void master_hash_table_deleter(void *p);
+extern void master_hash_table_deleter(const void *p);
 
 // Intended for debugging.
 extern void master_hash_table_print();

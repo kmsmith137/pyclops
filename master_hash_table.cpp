@@ -17,10 +17,10 @@ namespace pyclops {
 
 // Global hash table is declared here.
 // Note: the hash table does not hold a reference!
-static unordered_map<void*, PyObject*> master_hash_table;
+static unordered_map<const void*, PyObject*> master_hash_table;
 
 
-void master_hash_table_add(void *cptr, PyObject *pptr)
+void master_hash_table_add(const void *cptr, PyObject *pptr)
 {
 #if PYCLOPS_MASTER_HASH_TABLE_DEBUG
     cout << "master_hash_table_add() called: " << cptr << " -> " << pptr << endl;
@@ -42,7 +42,7 @@ void master_hash_table_add(void *cptr, PyObject *pptr)
 }
 
 
-void master_hash_table_remove(void *cptr, PyObject *pptr)
+void master_hash_table_remove(const void *cptr, PyObject *pptr)
 {
 #if PYCLOPS_MASTER_HASH_TABLE_DEBUG
     cout << "master_hash_table_remove() called: " << cptr << " -> " << pptr << endl;
@@ -67,7 +67,7 @@ void master_hash_table_remove(void *cptr, PyObject *pptr)
 }
 
 
-PyObject *master_hash_table_query(void *cptr)
+PyObject *master_hash_table_query(const void *cptr)
 {
 #if PYCLOPS_MASTER_HASH_TABLE_DEBUG
     cout << "master_hash_table_query() called: " << cptr << endl;
@@ -87,7 +87,7 @@ PyObject *master_hash_table_query(void *cptr)
 }
 
 
-void master_hash_table_deleter(void *cptr)
+void master_hash_table_deleter(const void *cptr)
 {
 #if PYCLOPS_MASTER_HASH_TABLE_DEBUG
     cout << "master_hash_table_deleter() called: " << cptr << endl;
@@ -120,7 +120,7 @@ void master_hash_table_deleter(void *cptr)
 // Suboptimal implementation, intended for debugging.
 void master_hash_table_print()
 {
-    vector<pair<void*,PyObject*>> v;
+    vector<pair<const void*,PyObject*>> v;
 
     for (const auto &p: master_hash_table)
 	v.push_back({p.first, p.second});

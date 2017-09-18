@@ -90,8 +90,8 @@ struct py_tuple : public py_object {
     static inline py_tuple make_empty(ssize_t n);
 
     // make(): constructor-like function which makes python tuple from arbitrary C++ args.
-    template<typename... Args>
-    static inline py_tuple make(Args... args);
+    template<typename... Ts>
+    static inline py_tuple make(const Ts & ... args);
 
     inline void _check(const char *where=NULL);
     static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
@@ -308,25 +308,25 @@ inline py_tuple py_tuple::make_empty(ssize_t n)
 
 
 // _set_tuple(): helper for py_tuple::make() below.
-template<typename... Args>
-inline void _set_tuple(py_tuple &t, int pos, Args... args);
+template<typename... Ts>
+inline void _set_tuple(py_tuple &t, int pos, const Ts & ... args);
 
 template<> inline void _set_tuple(py_tuple &t, int pos) { }
 
-template<typename A, typename... Ap>
-inline void _set_tuple(py_tuple &t, int pos, A a, Ap... ap)
+template<typename T, typename... Ts>
+inline void _set_tuple(py_tuple &t, int pos, const T &a, const Ts & ... ap)
 {
-    t.set_item(pos, converter<A>::to_python(a));
+    t.set_item(pos, converter<T>::to_python(a));
     _set_tuple(t, pos+1, ap...);
 }
 
 // Static constructor-like member function.
 // FIXME: improve using the new fancy templates in functional_wrappers.hpp (maybe
 // py_tuple::make() should move to this source file?)
-template<typename... Args>
-inline py_tuple py_tuple::make(Args... args)
+template<typename... Ts>
+inline py_tuple py_tuple::make(const Ts & ... args)
 {
-    py_tuple ret = make_empty(sizeof...(Args));
+    py_tuple ret = make_empty(sizeof...(Ts));
     _set_tuple(ret, 0, args...);
     return ret;
 }

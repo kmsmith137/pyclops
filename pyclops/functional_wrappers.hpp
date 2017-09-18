@@ -632,7 +632,7 @@ inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts.
 
     using ac = _arg_checker<cargs_t, xargs_t>;
     
-    constexpr bool to_python_error = !converts_to_python<R>::value;
+    constexpr bool to_python_error = !std::is_void<R>::value && !converts_to_python<R>::value;
     constexpr bool all_checks_passed = ac::valid && !to_python_error;
 
     static_assert(!ac::count_error || (xargs_t::N > 0), "python arguments must be specified (either strings or kwarg(...))");
@@ -692,7 +692,7 @@ inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(std::function
 
     using ac = _arg_checker<cargs_t, xargs_t>;
     
-    constexpr bool to_python_error = !converts_to_python<R>::value;
+    constexpr bool to_python_error = !std::is_void<R>::value && !converts_to_python<R>::value;
     constexpr bool all_checks_passed = ac::valid && !to_python_error;
 
     static_assert(!ac::count_error || (xargs_t::N > 0), "python arguments must be specified (either strings or kwarg(...))");

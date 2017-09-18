@@ -283,7 +283,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_method("f_cpp", "forces call to f() to go through C++", wrap_method(&Base::f_cpp, "n"));
     Base_type.add_method("g", "a virtual function, but not pure virtual", wrap_method(&Base::g, "n"));
     Base_type.add_method("g_cpp", "forces call to g() to go through C++", wrap_method(&Base::g_cpp, "n"));
-    // Base_type.add_method("h", "a virtual function returning void", wrap_method(&Base::h, "s"));
+    Base_type.add_method("h", "a virtual function returning void", wrap_method(&Base::h, "s"));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
     auto Base_constructor1 = [](string name) { return new PyBase(name); };

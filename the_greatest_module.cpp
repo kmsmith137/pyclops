@@ -135,6 +135,9 @@ struct Base {
     // g() is virtual, but not pure virtual
     virtual ssize_t g(ssize_t n) { return 10*n; }
     ssize_t g_cpp(ssize_t n) { return g(n); }   // Forces call to g() to go through C++ code.
+    
+    // virtual function returning void
+    virtual void h(const string &s) { cout << s << endl; }
 };
 
 // Helper function for Derived constructor.
@@ -170,17 +173,25 @@ struct PyBase : public Base {
     // Pure virtual
     virtual ssize_t f(ssize_t n) override
     {
-	pure_virtual_function<Base> v(Base_type, this, "f");
-	return v.upcall<ssize_t> (n);
+	pure_virtual_function<Base,ssize_t> v(Base_type, this, "f");
+	return v.upcall(n);
     }
 
     // Non pure virtual
     virtual ssize_t g(ssize_t n) override
     {
-	virtual_function<Base> v(Base_type, this, "g");
+	virtual_function<Base,ssize_t> v(Base_type, this, "g");
 	if (v.exists)
-	    return v.upcall<ssize_t> (n);
+	    return v.upcall(n);
 	return Base::g(n);
+    }
+
+    // Non pure virtual
+    virtual void h(const string &s) override
+    {
+	virtual_function<Base,void> v(Base_type, this, "h");
+	if (v.exists) v.upcall(s);
+	else Base::h(s);
     }
 }; 
 
@@ -272,6 +283,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_method("f_cpp", "forces call to f() to go through C++", wrap_method(&Base::f_cpp, "n"));
     Base_type.add_method("g", "a virtual function, but not pure virtual", wrap_method(&Base::g, "n"));
     Base_type.add_method("g_cpp", "forces call to g() to go through C++", wrap_method(&Base::g_cpp, "n"));
+    // Base_type.add_method("h", "a virtual function returning void", wrap_method(&Base::h, "s"));
 
     // This python constructor allows a python subclass to override the pure virtual function f().
     auto Base_constructor1 = [](string name) { return new PyBase(name); };

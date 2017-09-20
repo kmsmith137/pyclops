@@ -52,10 +52,12 @@ struct py_object {
 
     inline bool is_none() const { return ptr == Py_None; }
     inline bool is_tuple() const { return PyTuple_Check(ptr); }
+    inline bool is_list() const { return PyList_Check(ptr); }
     inline bool is_dict() const { return PyDict_Check(ptr); }
     inline bool is_array() const { return PyArray_Check(ptr); }
     inline bool is_callable() const { return PyCallable_Check(ptr); }
     inline bool is_integer() const { return PyInt_Check(ptr); }
+    inline bool is_floating_point() const { return PyFloat_Check(ptr); }
     inline bool is_string() const { return PyString_Check(ptr); }
     inline ssize_t get_refcount() const { return ptr->ob_refcnt; }
 
@@ -66,6 +68,8 @@ struct py_object {
     // Note: to further convert to a C++ string, wrap return value in "from_python<std::string> ()".
     py_object str() const  { return py_object::new_reference(PyObject_Str(ptr)); }
     py_object repr() const { return py_object::new_reference(PyObject_Repr(ptr)); }
+
+    const char *type_name() const { return this->ptr->ob_type->tp_name; }
 };
 
 

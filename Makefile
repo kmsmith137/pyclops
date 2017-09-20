@@ -20,6 +20,7 @@ INCFILES = \
   pyclops/functional_wrappers.hpp \
   pyclops/internals.hpp \
   pyclops/py_array.hpp \
+  pyclops/py_list.hpp \
   pyclops/py_type.hpp \
   pyclops/py_weakref.hpp \
   pyclops/virtual_function.hpp

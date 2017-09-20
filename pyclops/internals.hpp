@@ -10,6 +10,7 @@
 
 #include "pyclops/core.hpp"
 #include "pyclops/py_array.hpp"
+#include "pyclops/py_list.hpp"
 #include "pyclops/py_type.hpp"
 #include "pyclops/py_weakref.hpp"
 

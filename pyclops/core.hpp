@@ -124,12 +124,45 @@ struct py_dict : public py_object {
 
     ssize_t size() const { return PyDict_Size(ptr); }
 
+    inline py_object get_item(const char *key) const;
+    inline py_object get_item(const std::string &key) const;
+    inline py_object get_item(const py_object &key) const;
+    
+    inline void set_item(const char *key, const py_object &val);
+    inline void set_item(const std::string &key, const py_object &val);
+    inline void set_item(const py_object &key, const py_object &val);
+
     inline void _check(const char *where=NULL);
     static void _throw(const char *where);   // non-inline, defined in exceptions.cpp
 
     // For convenience in pyclops/functional_wrappers.hpp.
     // Returns borrowed reference.  If key is not found, returns NULL without setting an exception.
     inline PyObject *_get_item(const char *key) const;
+
+    // The boilerplate below defines a range-based for-loop for looping over (key,value) pairs.
+    // Usage:
+    //
+    //   for (const auto &p: dict) {
+    //        const py_object &key = p.first;
+    //        const py_object &val = p.second;
+    //        ...
+    //   }
+
+    struct iterator {
+	// Note: all (PyObject *) pointers are borrowed references.
+	PyObject *dict = nullptr;
+	PyObject *key = nullptr;
+	PyObject *val = nullptr;
+	Py_ssize_t pos = 0;
+
+	inline iterator(PyObject *dict);
+	inline bool operator!=(const iterator &it) const;
+	inline iterator& operator++();
+	inline std::pair<py_object,py_object> operator* () const;
+    };
+
+    inline iterator begin() const;
+    inline iterator end() const;
 };
 
 
@@ -388,6 +421,86 @@ inline void py_dict::_check(const char *where)
 inline PyObject *py_dict::_get_item(const char *key) const
 {
     return PyDict_GetItemString(this->ptr, key);
+}
+
+inline py_object py_dict::get_item(const char *key) const
+{
+    return py_object::borrowed_reference(PyDict_GetItemString(this->ptr, key));
+}
+
+inline py_object py_dict::get_item(const std::string &key) const
+{
+    return get_item(key.c_str()); 
+}
+
+inline py_object py_dict::get_item(const py_object &key) const
+{
+    return py_object::borrowed_reference(PyDict_GetItem(this->ptr, key.ptr));
+}
+
+inline void py_dict::set_item(const char *key, const py_object &val)
+{
+    // FIXME I assume that if PyDict_SetItemString() fails, it sets a python exception,
+    // but the docs don't actually say this.
+    int err = PyDict_SetItemString(this->ptr, key, val.ptr);
+    if (err != 0)
+	throw pyerr_occurred();
+}
+
+inline void py_dict::set_item(const std::string &key, const py_object &val)
+{
+    set_item(key.c_str(), val);
+}
+
+inline void py_dict::set_item(const py_object &key, const py_object &val)
+{
+    int err = PyDict_SetItem(this->ptr, key.ptr, val.ptr);
+    if (err != 0)
+	throw pyerr_occurred();
+}
+
+
+inline py_dict::iterator::iterator(PyObject *dict_) :
+    dict(dict_)
+{
+    if (dict == NULL)
+	return;
+    if (!PyDict_Next(dict, &pos, &key, &val))
+	dict = NULL;
+}
+
+inline bool py_dict::iterator::operator!=(const py_dict::iterator &it) const
+{
+    bool null1 = (this->dict == NULL);
+    bool null2 = (it.dict == NULL);
+
+    if (null1 && null2)
+	return false;  // equal
+    if (null1 || null2)
+	return true;   // unequal
+    return (this->pos != it.pos);
+}
+
+inline py_dict::iterator &py_dict::iterator::operator++()
+{
+    if (dict && !PyDict_Next(dict, &pos, &key, &val))
+	dict = NULL;
+    return *this;
+}
+
+inline std::pair<py_object,py_object> py_dict::iterator::operator*() const
+{
+    return std::make_pair(py_object::borrowed_reference(this->key), py_object::borrowed_reference(this->val));
+}
+
+inline py_dict::iterator py_dict::begin() const
+{
+    return py_dict::iterator(this->ptr);
+}
+
+inline py_dict::iterator py_dict::end() const
+{
+    return py_dict::iterator(NULL);
 }
 
 

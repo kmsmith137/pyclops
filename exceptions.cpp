@@ -12,35 +12,42 @@ namespace pyclops {
 void py_tuple::_throw(const char *where)
 {
     if (!where)
-	where = "pyclops: internal error";
+	where = "pyclops";
     throw runtime_error(string(where) + ": object was not a tuple as expected");
 }
 
 void py_dict::_throw(const char *where)
 {
     if (!where)
-	where = "pyclops: internal error";
+	where = "pyclops";
     throw runtime_error(string(where) + ": object was not a dictionary as expected");
+}
+
+void py_list::_throw(const char *where)
+{
+    if (!where)
+	where = "pyclops";
+    throw runtime_error(string(where) + ": object was not a list as expected");
 }
 
 void py_array::_throw(const char *where)
 {
     if (!where)
-	where = "pyclops: internal error";
+	where = "pyclops";
     throw runtime_error(string(where) + ": object was not an array as expected");
 }
 
 void py_type::_throw(const char *where)
 {
     if (!where)
-	where = "pyclops: internal error";
+	where = "pyclops";
     throw runtime_error(string(where) + ": object was not a type object as expected");
 }
 
 void py_weakref::_throw(const char *where)
 {
     if (!where)
-	where = "pyclops: internal error";
+	where = "pyclops";
     throw runtime_error(string(where) + ": object was not a weakref object as expected");
 }
 

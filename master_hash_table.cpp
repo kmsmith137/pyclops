@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <unordered_map>
 
+#define NO_IMPORT_ARRAY
 #include "pyclops/core.hpp"
 
 // To enable some verbose debugging output, turn this on!

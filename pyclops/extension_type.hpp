@@ -279,8 +279,11 @@ inline void extension_type<T,B>::_construct(const std::string &name, const std::
     tobj = (PyTypeObject *) malloc(nalloc);   // FIXME check for failed allocation
     memset(tobj, 0, nalloc);
 
-    // FIXME PyObject_INIT_VAR() produces a lot of warnings with gcc5
-    PyObject_INIT_VAR((PyVarObject *) tobj, NULL, 0);
+    // Idiomatic initialization produces superfluous warnings with gcc5
+    // PyObject_INIT((PyVarObject *) tobj, NULL);
+
+    // This initialization is equivalent (see Include/objimpl.h in python interpreter source code)
+    _Py_NewReference(tobj);
 
     tobj->tp_name = strdup(name.c_str());
     tobj->tp_doc = strdup(docstring.c_str());

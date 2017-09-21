@@ -344,7 +344,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     // These functions all operate on Base objects (not Derived).
     // Exception: make_derived2().
     m.add_function("make_derived", wrap_func(make_derived, "m"));
-    // m.add_function("make_derived2", wrap_func(make_derived2, "m"));
+    m.add_function("make_derived2", wrap_func(make_derived2, "m"));
     m.add_function("set_global_Base", wrap_func(set_global_Base, "b"));
     m.add_function("clear_global_Base", wrap_func(clear_global_Base));
     m.add_function("f_global_Base", wrap_func(f_global_Base, "n"));

@@ -113,17 +113,19 @@ inline py_object _py_upcall(void *self, const char *meth_name, const py_tuple &a
 //
 // FIXME should this code be moved elsewhere?
 // FIXME 'xconverter' needs better name!
+//
+// FIXME has_xconverter could be improved (just checks that static member function 'type' exists and is a pointer)
 
 
-// expects 'static constexpr extension_type<T> *type = ...'
+// expects 'static constexpr extension_type<T,B> *type = ...'
 template<typename T> struct xconverter;
 
 
-template<typename T, typename = extension_type<T> * const>
+template<typename T, typename = void>
 struct has_xconverter : std::false_type { };
 
 template<typename T>
-struct has_xconverter<T, decltype(xconverter<T>::type)> : std::true_type { };
+struct has_xconverter<T, typename std::enable_if<std::is_pointer<decltype(xconverter<T>::type)>::value>::type> : std::true_type { };
 
 
 template<typename T>

@@ -26,7 +26,7 @@ namespace pyclops {
 // types.  This can be done with the following awkward and not-very-intuitive boilerplate:
 //
 //   template<typename T>
-//   struct predicated_converter<T, typename std::enable_if<P,int>::type>
+//   struct predicated_converter<T, typename std::enable_if<P>::type>
 //
 // where P is a boolean predicate (for example std::is_integral<T>::value).
 // FIXME: is there a more intuitive way to define predicated_converter?
@@ -62,7 +62,7 @@ struct converts_to_python<T, decltype(converter<T>::to_python(std::declval<const
 
 
 template<typename T>
-struct predicated_converter<T, typename std::enable_if<std::is_base_of<py_object,T>::value,int>::type>
+struct predicated_converter<T, typename std::enable_if<std::is_base_of<py_object,T>::value>::type>
 {
     static inline T from_python(const py_object &x, const char *where=nullptr) { return T(x,where); }
     static inline py_object to_python(const T &x) { return x; }
@@ -85,7 +85,7 @@ template<> struct converter<py_object> {
 // FIXME incorporate climits here.
 
 template<typename T>
-struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::value,int>::type>
+struct predicated_converter<T, typename std::enable_if<std::is_integral<T>::value>::type>
 {
     static inline T from_python(const py_object &x, const char *where=nullptr)
     {
@@ -122,7 +122,7 @@ template<> struct converter<bool> {
 
 // predicated_converter for floating-point types
 template<typename T>
-struct predicated_converter<T, typename std::enable_if<std::is_floating_point<T>::value,int>::type>
+struct predicated_converter<T, typename std::enable_if<std::is_floating_point<T>::value>::type>
 {
     static inline T from_python(const py_object &x, const char *where=nullptr)
     {

@@ -129,7 +129,7 @@ struct has_xconverter<T, typename std::enable_if<std::is_pointer<decltype(xconve
 
 
 template<typename T>
-struct predicated_converter<T&, typename std::enable_if<has_xconverter<T>::value,int>::type>
+struct predicated_converter<T&, typename std::enable_if<has_xconverter<T>::value>::type>
 {
     static inline T& from_python(const py_object &x, const char *where=nullptr)
     {
@@ -140,7 +140,7 @@ struct predicated_converter<T&, typename std::enable_if<has_xconverter<T>::value
 
 
 template<typename T>
-struct predicated_converter<std::shared_ptr<T>, typename std::enable_if<has_xconverter<T>::value,int>::type>
+struct predicated_converter<std::shared_ptr<T>, typename std::enable_if<has_xconverter<T>::value>::type>
 {
     static std::shared_ptr<T> from_python(const py_object &obj, const char *where=nullptr)
     {
@@ -159,7 +159,7 @@ struct predicated_converter<std::shared_ptr<T>, typename std::enable_if<has_xcon
 // flag somewhere to enable this template?
 
 template<typename T>
-struct predicated_converter<T, typename std::enable_if<has_xconverter<T>::value,int>::type>
+struct predicated_converter<T, typename std::enable_if<has_xconverter<T>::value>::type>
 {
     static inline py_object to_python(const T &x)
     {

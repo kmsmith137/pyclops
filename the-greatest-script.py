@@ -2,30 +2,30 @@
 
 import numpy as np
 import numpy.random
-import the_greatest_module
+import the_greatest_module as tgm
 
-print 'Should be 15:', the_greatest_module.add(5,10)
-print the_greatest_module.describe_array(np.zeros((3,4,5), dtype=np.float32))
+print 'Should be 15:', tgm.add(5,10)
+print tgm.describe_array(np.zeros((3,4,5), dtype=np.float32))
 
 a = numpy.random.uniform(size=(3,4,5))
-s1 = the_greatest_module.sum_array(a)
+s1 = tgm.sum_array(a)
 s2 = a.sum()
 print 'The following should be equal:', s1, s2
 
 a = [ [ 1, 2, 3 ], [ 4, 5, 6 ] ]
-print 'Should equal 21:', the_greatest_module.sum_array(a)
+print 'Should equal 21:', tgm.sum_array(a)
 
-a = the_greatest_module.make_array((2,3,4))
+a = tgm.make_array((2,3,4))
 print 'Output of make_array() follows'
 print a
 
-t = the_greatest_module.make_tuple()
+t = tgm.make_tuple()
 print 'Output of make_tuple() follows'
 print t
 
 print
 print 'Calling X()'
-x = the_greatest_module.X(23)
+x = tgm.X(23)
 print 'Calling X.get()'
 i = x.get()
 print 'Should be 23:', i
@@ -33,29 +33,45 @@ print 'Deleting'
 del x
 
 print 'Calling make_X()'
-x = the_greatest_module.make_X(24)
+x = tgm.make_X(24)
 print 'Calling X.get()'
 i = x.get()
 print 'Should be 24:', i
 print 'Calling get_X()'
-i = the_greatest_module.get_X(x)
+i = tgm.get_X(x)
 print 'Should be 24:', i
 print 'Deleting'
 del x
 
 print 'Calling make_Xp()'
-x = the_greatest_module.make_Xp(25)
+x = tgm.make_Xp(25)
 print 'Calling clone_Xp()'
-y = the_greatest_module.clone_Xp(x)
+y = tgm.clone_Xp(x)
 print 'Calling X.get()'
 i = x.get()
 print 'Should be 25:', i
 print 'Calling get_Xp()'
-i = the_greatest_module.get_Xp(y)
+i = tgm.get_Xp(y)
 print 'Should be 25:', i
 print 'Deleting x'
 del x
 print 'Deleting y'
 del y
+
+class E(tgm.Derived):
+    def f(self, m):
+        return m+1
+
+    def g(self, m):
+        return m+2
+
+    def h(self, s):
+        print 'E.%s' % s
+
+e = E(10)
+print e
+print e.f(100)
+print e.g(100)
+print e.h("hi")
 
 print 'All done!'

@@ -151,17 +151,21 @@ static string _der_name(ssize_t m)
 struct Derived : public Base {
     const ssize_t m;
     Derived(ssize_t m_) : Base(_der_name(m_)), m(m_) { }
+
     virtual ssize_t f(ssize_t n) override { return m+n; }
+    virtual ssize_t g(ssize_t n) override { return 20*n; }
 };
 
 
 // -------------------------------------------------------------------------------------------------
 
 // Declare Base type object
-static extension_type<Base> Base_type("Base", "This base class has a pure virtual function.");
+static extension_type<Base> Base_type("Base", "This base class has a pure virtual function f() and a non-pure virtual g().");
+static extension_type<Derived,Base> Derived_type("Derived", "This derived class overrides the pure virtual Base::f(), but does not override Base::g().", Base_type);
 
 namespace pyclops {
     template<> struct xconverter<Base> { static constexpr extension_type<Base> *type = &Base_type; };
+    template<> struct xconverter<Derived> { static constexpr extension_type<Derived,Base> *type = &Derived_type; };
 }
 
 // "Upcalling" base class.
@@ -173,14 +177,14 @@ struct PyBase : public Base {
     // Pure virtual
     virtual ssize_t f(ssize_t n) override
     {
-	pure_virtual_function<Base,ssize_t> v(Base_type, this, "f");
+	pure_virtual_function<ssize_t> v(Base_type, this, "f");
 	return v.upcall(n);
     }
 
     // Non pure virtual
     virtual ssize_t g(ssize_t n) override
     {
-	virtual_function<Base,ssize_t> v(Base_type, this, "g");
+	virtual_function<ssize_t> v(Base_type, this, "g");
 	if (v.exists)
 	    return v.upcall(n);
 	return Base::g(n);
@@ -189,12 +193,45 @@ struct PyBase : public Base {
     // Non pure virtual
     virtual void h(const string &s) override
     {
-	virtual_function<Base,void> v(Base_type, this, "h");
+	virtual_function<void> v(Base_type, this, "h");
 	if (v.exists) v.upcall(s);
 	else Base::h(s);
     }
 }; 
 
+// "Upcalling" derived class.
+// FIXME: currently definitions of "upcalling" f(), g(), h() must be repeated between PyBase and PyDerived.
+// Fixing this is nontrivial, since PyDerived is not a subclass of PyBase.  I made a note on my todo list 
+// to think about it more!  It helps a little to define some helper functions (see example in rf_pipelines),
+// but I'd like to find a better solution.
+
+struct PyDerived : public Derived {
+    PyDerived(ssize_t m_) : Derived(m_) { }
+
+    // In class Derived, f() has been overridden, so it is virtual (not pure virtual).
+    virtual ssize_t f(ssize_t n) override
+    {
+	virtual_function<ssize_t> v(Derived_type, this, "f");
+	if (v.exists) return v.upcall(n);
+	return Derived::f(n);
+    }
+
+    virtual ssize_t g(ssize_t n) override
+    {
+	virtual_function<ssize_t> v(Derived_type, this, "g");
+	if (v.exists)
+	    return v.upcall(n);
+	return Derived::g(n);	
+    }
+
+    // Non pure virtual
+    virtual void h(const string &s) override
+    {
+	virtual_function<void> v(Derived_type, this, "h");
+	if (v.exists) v.upcall(s);
+	else Derived::h(s);
+    }    
+};
 
 static shared_ptr<Base> make_derived(ssize_t m)
 {
@@ -278,6 +315,18 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     // ----------------------------------------------------------------------
 
+    // Base, Derived.
+    // For Derived, we don't wrap f(), g(), h(), etc. but we do wrap a constructor.
+
+    std::function<Base* (const string &)> 
+	Base_init = [](const string &name) { return new PyBase(name); };
+
+    std::function<Derived* (ssize_t)>
+	Derived_init = [](ssize_t m) { return new PyDerived(m); };
+
+    Base_type.add_constructor(wrap_constructor(Base_init, "name"));
+    Derived_type.add_constructor(wrap_constructor(Derived_init, "m"));
+
     Base_type.add_method("get_name", "get the name!", wrap_method(&Base::get_name));
     Base_type.add_method("f", "a pure virtual function", wrap_method(&Base::f, "n"));
     Base_type.add_method("f_cpp", "forces call to f() to go through C++", wrap_method(&Base::f_cpp, "n"));
@@ -285,17 +334,16 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     Base_type.add_method("g_cpp", "forces call to g() to go through C++", wrap_method(&Base::g_cpp, "n"));
     Base_type.add_method("h", "a virtual function returning void", wrap_method(&Base::h, "s"));
 
-    // This python constructor allows a python subclass to override the pure virtual function f().
-    auto Base_constructor1 = [](string name) { return new PyBase(name); };
-    auto Base_constructor2 = std::function<Base* (string)> (Base_constructor1);
-    Base_type.add_constructor(wrap_constructor(Base_constructor2, "name"));
-
     m.add_type(Base_type);
+    m.add_type(Derived_type);
 
+    // These functions all operate on Base objects (not Derived)
     m.add_function("make_derived", wrap_func(make_derived, "m"));
     m.add_function("set_global_Base", wrap_func(set_global_Base, "b"));
     m.add_function("clear_global_Base", wrap_func(clear_global_Base));
     m.add_function("f_global_Base", wrap_func(f_global_Base, "n"));
+
+    // ----------------------------------------------------------------------
 
     m.add_function("f_kwargs", wrap_func(f_kwargs, "a", "b", kwarg("c",2), kwarg("d",3)));
 

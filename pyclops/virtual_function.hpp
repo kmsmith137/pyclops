@@ -22,12 +22,12 @@ namespace pyclops {
 //
 //   class py_X {
 //       virtual int f_v(int i) override {
-//           virtual_function<X,int> v(X_type, this, "f_v");
+//           virtual_function<int> v(X_type, this, "f_v");
 //           return v.exists ? v.upcall(i) : X::f_v(i);
 //       }
 //
 //       virtual int f_pv(int i) override {
-//           pure_virtual_function<X,int> v(X_type, this, "f_pv");
+//           pure_virtual_function<int> v(X_type, this, "f_pv");
 //           return v.upcall(i);
 //       }
 //   };
@@ -35,28 +35,31 @@ namespace pyclops {
 // Note that converters are applied in virtual_function<X>::upcall().
 //
 // FIXME too much boilerplate needed to wrap a virtual function!  Needs a second iteration to streamline...
-// FIXME explicit specification of template arguments <T,R> is ugly, any way to improve?
-// One idea: instead of template arguments <T,R>, let function pointer to class member function be the template argument.
 
 
-template<typename T, typename R>
+template<typename R>
 struct virtual_function {
     py_object self;
     py_object f_base;
     py_object f_self;
     bool exists;
 
-    virtual_function(const extension_type<T> &type, const T *self, const char *method_name);
+    template<typename T, typename B, typename TT>
+    virtual_function(const extension_type<T,B> &type, const TT *self, const char *method_name);
 
     template<typename... Ts>
     inline R upcall(const Ts & ... args);
 };
 
 
-template<typename T, typename R>
-struct pure_virtual_function : virtual_function<T,R> {
-    // Inherits upcall(), exists, self, func from virtual_function<T,R>.
-    pure_virtual_function(const extension_type<T> &type, const T *self, const char *method_name);
+template<typename R>
+struct pure_virtual_function : virtual_function<R> {
+    // Inherits the following members from virtual_function<R> base class:
+    //    self, f_base, f_self, exists
+    //    upcall()
+
+    template<typename T, typename B, typename TT>
+    pure_virtual_function(const extension_type<T,B> &type, const TT *self, const char *method_name);
 };
 
 
@@ -69,9 +72,11 @@ struct pure_virtual_function : virtual_function<T,R> {
 
 
 // Helper for virtual_function constructor: converts C++ 'self' to python 'self'.
-template<typename T>
-inline py_object _vf_self(const extension_type<T> &type, const T *self)
+template<typename T, typename B, typename TT>
+inline py_object _vf_self(const extension_type<T,B> &type, const TT *self)
 {
+    static_assert(std::is_base_of<T,TT>::value, "virtual_function: 'self' is not an instance of extension_type::wrapped_type");
+
     PyObject *sp = master_hash_table_query(self);
     
     // FIXME: this error message reminded me that we should have a mechanism for constructing
@@ -95,8 +100,8 @@ inline py_object _vf_self(const extension_type<T> &type, const T *self)
 
 
 // Helper for virtual_function constructor: gets method from base class.
-template<typename T>
-inline py_object _vf_fbase(const extension_type<T> &type, const char *method_name)
+template<typename T, typename B>
+inline py_object _vf_fbase(const extension_type<T,B> &type, const char *method_name)
 {
     PyObject *bp = PyObject_GetAttrString((PyObject *)type.tobj, method_name);
     if (!bp)
@@ -116,8 +121,9 @@ inline py_object _vf_fself(const py_object &self, const char *method_name)
 }
 
 
-template<typename T, typename R>
-virtual_function<T,R>::virtual_function(const extension_type<T> &type, const T *self_, const char *method_name) :
+template<typename R>
+template<typename T, typename B, typename TT>
+virtual_function<R>::virtual_function(const extension_type<T,B> &type, const TT *self_, const char *method_name) :
     self(_vf_self(type, self_)),
     f_base(_vf_fbase(type, method_name)),
     f_self(_vf_fself(self, method_name)),
@@ -125,9 +131,9 @@ virtual_function<T,R>::virtual_function(const extension_type<T> &type, const T *
 { }
 
 
-template<typename T, typename R>
+template<typename R>
 template<typename... Ts>
-inline R virtual_function<T,R>::upcall(const Ts & ... args)
+inline R virtual_function<R>::upcall(const Ts & ... args)
 {
     if (!exists)
 	throw std::runtime_error("pure_virtual_function::upcall() applied when exists=false (this is a bug in the C++ wrapper code)");
@@ -145,14 +151,15 @@ inline R virtual_function<T,R>::upcall(const Ts & ... args)
 // Currently implemented by specializing the entire virtual_function class to R=void via cut-and-paste.
 // FIXME there must be a way of doing this with less cut-and-paste, but I am being lazy!
 
-template<typename T>
-struct virtual_function<T,void> {
+template<>
+struct virtual_function<void> {
     py_object self;
     py_object f_base;
     py_object f_self;
     bool exists;
 
-    virtual_function(const extension_type<T> &type, const T *self_, const char *method_name) :
+    template<typename T, typename B, typename TT>
+    virtual_function(const extension_type<T,B> &type, const TT *self_, const char *method_name) :
 	self(_vf_self(type, self_)),
 	f_base(_vf_fbase(type, method_name)),
 	f_self(_vf_fself(self, method_name)),
@@ -170,11 +177,12 @@ struct virtual_function<T,void> {
 };
 
 
-// pure_virtual_function<T,R> is just a thin wrapper around virtual_function<T,R>, which throws an exception if there is no python override.
+// pure_virtual_function<R> is just a thin wrapper around virtual_function<R>>, which throws an exception if there is no python override.
 
-template<typename T, typename R>
-pure_virtual_function<T,R>::pure_virtual_function(const extension_type<T> &type, const T *self_, const char *method_name) :
-    virtual_function<T,R> (type, self_, method_name)
+template<typename R>
+template<typename T, typename B, typename TT>
+pure_virtual_function<R>::pure_virtual_function(const extension_type<T,B> &type, const TT *self_, const char *method_name) :
+    virtual_function<R> (type, self_, method_name)
 {
     // The base class constructor sets the 'exists' flag if the virtual function has been overridden in python.
     // For pure virtuals this is mandatory, so we just throw an exception if exists=false.

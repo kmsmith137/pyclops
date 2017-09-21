@@ -21,8 +21,8 @@ public:
     void add_function(const std::string &func_name, const std::string &func_docstring, std::function<py_object(py_tuple,py_dict)> func);
     void add_function(const std::string &func_name, std::function<py_object(py_tuple,py_dict)> func);   // empty docstring
 
-    template<typename T>
-    inline void add_type(extension_type<T> &type);
+    template<typename T, typename B>
+    inline void add_type(extension_type<T,B> &type);
 
     // Registers module with the python interpreter (by calling Py_InitModule3())
     void finalize();
@@ -40,8 +40,8 @@ protected:
 };
 
 
-template<typename T>
-inline void extension_module::add_type(extension_type<T> &type)
+template<typename T, typename B>
+inline void extension_module::add_type(extension_type<T,B> &type)
 {
     if (finalized)
 	throw std::runtime_error("pyclops: extension_module::add_type() called after extension_module::finalize()");

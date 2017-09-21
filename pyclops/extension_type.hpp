@@ -1,6 +1,7 @@
 #ifndef _PYCLOPS_EXTENSION_TYPE_HPP
 #define _PYCLOPS_EXTENSION_TYPE_HPP
 
+#include <memory>
 #include "core.hpp"
 #include "converters.hpp"
 #include "cfunction_table.hpp"
@@ -17,10 +18,28 @@ namespace pyclops {
 // Externally visible extension_type.
 
 
-template<typename T>
-struct extension_type {
-    extension_type(const std::string &name, const std::string &docstring="");
+template<typename B>
+struct _extension_subtype {
+    // Returns NULL if dynamic_pointer_cast fails (throws exception on miscellaneous failure).
+    // Caller must check that 'x' is a nonempty pointer, and x.get() is not in the master_hash_table.
+    virtual PyObject *_to_python(const std::shared_ptr<B> &x) = 0;
+};
 
+
+template<typename T, typename B=T>
+struct extension_type : _extension_subtype<B>
+{
+    using wrapped_type = T;
+    using wrapped_base = B;
+
+    // Use this constructor if there is no python-wrapped base class (i.e. B == T).
+    inline extension_type(const std::string &name, const std::string &docstring);
+
+    // Use this constructor if there is a python-wrapped base class (i.e. B != T).
+    // The constructor will check (via static_assert) that E::wrapped_type == B.
+    template<typename E>
+    inline extension_type(const std::string &name, const std::string &docstring, E &base);
+    
     inline void add_constructor(std::function<T* (py_object,py_tuple,py_dict)> f);
 
     inline void add_method(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f);
@@ -40,23 +59,44 @@ struct extension_type {
     template<typename R>
     inline void add_property(const std::string &name, const std::string &docstring, const std::function<R& (T *)> &f);
 
-    // FIXME I don't think this ever gets called!!
+    // Sets the 'finalize' flag.
+    // Note: this is called automatically in extension_module::add_type().
     inline void finalize();
 
     // These guys are intended to be wrapped by converters.
     // FIXME wouldn't it be better to make them member functions?
-    static inline py_object to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x);
     static inline T *bare_pointer_from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
     static inline std::shared_ptr<T> shared_ptr_from_python(PyTypeObject *tobj, const py_object &obj, const char *where=nullptr);
 
+    // This version of to_python() is "the" to_python converter for the wrapped type T.
+    // It checks for an empty pointer, checks the master_hash_table, and checks all of the derived_types.
+    inline py_object to_python(const std::shared_ptr<T> &x);
+
     static inline void tp_dealloc(PyObject *self);
 
+    // This version of _to_python() is called recursively via the base class.
+    // (See _extension_subtype above.)
+    inline PyObject *_to_python(const std::shared_ptr<B> &x) override;
+
+    // Helper function called by constructors.
+    inline void _construct(const std::string &name, const std::string &docstring);
+
+    // Helper function called by to_python() and _to_python().
+    // Returns new reference; never returns NULL.
+    inline PyObject *_make(const std::shared_ptr<T> &p);
+
+    // Allocated and initialized at construction.
     PyTypeObject *tobj = nullptr;
-    bool finalized = false;
 
     // Note: bare pointer to std::vector is intentional here!
     std::vector<PyMethodDef> *methods = nullptr;     // (name, cfunc, flags, docstring)
     std::vector<PyGetSetDef> *getsetters = nullptr;  // (name, getter, setter, doc, closure)
+    bool finalized = false;                          // if true, no methods or getsetters may be added.
+
+    // Note: base_types have pointers to their derived_types, but not vice versa!
+    // Note: it's OK to add derived_types after the 'finalized' flag is set.
+    // This is because new derived types may be defined at any time (e.g. when another module is imported).
+    std::vector<_extension_subtype<T> *> derived_types;
 };
 
 
@@ -105,7 +145,7 @@ struct predicated_converter<std::shared_ptr<T>, typename std::enable_if<has_xcon
 	
     static py_object to_python(const std::shared_ptr<T> &x)
     {
-	return extension_type<T>::to_python(xconverter<T>::type->tobj, x);
+	return xconverter<T>::type->to_python(x);
     }
 };
 
@@ -120,7 +160,7 @@ struct predicated_converter<T, typename std::enable_if<has_xconverter<T>::value,
     static inline py_object to_python(const T &x)
     {
 	auto p = std::make_shared<T> (x);
-	return extension_type<T>::to_python(xconverter<T>::type->tobj, p);
+	return xconverter<T>::type->to_python(p);
     }
 };
 
@@ -197,9 +237,35 @@ struct class_wrapper {
 };
 
 
-template<typename T>
-extension_type<T>::extension_type(const std::string &name, const std::string &docstring)
+// This constructor is called if there is no python-wrapped base class.
+template<typename T, typename B>
+extension_type<T,B>::extension_type(const std::string &name, const std::string &docstring)
 { 
+    static_assert(std::is_same<T,B>::value, "extension_type<T,B> was constructed with B != T, but no base_type object was specified");
+    _construct(name, docstring);
+}
+
+
+// This constructor is called if there is a python-wrapped base class B.
+template<typename T, typename B> template<typename E>
+extension_type<T,B>::extension_type(const std::string &name, const std::string &docstring, E &base)
+{
+    using Et = typename E::wrapped_type;
+
+    static_assert(!std::is_same<T,B>::value, "extension_type<T,B> was constructed with B == T, but base_type object was specified");
+    static_assert(std::is_same<B,Et>::value, "extension_type<T,B>: base class B does not match base_type::wrapped_type");
+
+    _construct(name, docstring);
+    
+    tobj->tp_base = base.tobj;
+    base.derived_types.push_back(this);
+}
+
+
+// Helper function called by constructors.
+template<typename T, typename B>
+inline void extension_type<T,B>::_construct(const std::string &name, const std::string &docstring)
+{
     this->methods = new std::vector<PyMethodDef> ();
     this->getsetters = new std::vector<PyGetSetDef> ();
 
@@ -221,8 +287,8 @@ extension_type<T>::extension_type(const std::string &name, const std::string &do
 }
 
 
-template<typename T>
-inline void extension_type<T>::add_constructor(std::function<T* (py_object, py_tuple, py_dict)> f)
+template<typename T, typename B>
+inline void extension_type<T,B>::add_constructor(std::function<T* (py_object, py_tuple, py_dict)> f)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was called after finalize()");
@@ -254,8 +320,8 @@ inline void extension_type<T>::add_constructor(std::function<T* (py_object, py_t
 }
 
 
-template<typename T>
-inline void extension_type<T>::add_method(const std::string &name, const std::string &docstring, std::function<py_object(T*,py_tuple,py_dict)> f)
+template<typename T, typename B>
+inline void extension_type<T,B>::add_method(const std::string &name, const std::string &docstring, std::function<py_object(T*,py_tuple,py_dict)> f)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_method() was called after finalize()");
@@ -284,8 +350,8 @@ inline void extension_type<T>::add_method(const std::string &name, const std::st
 }
 
 
-template<typename T>
-inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get)
+template<typename T, typename B>
+inline void extension_type<T,B>::add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_property() was called after finalize()");
@@ -305,8 +371,10 @@ inline void extension_type<T>::add_property(const std::string &name, const std::
 }
 
 
-template<typename T>
-inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get, const std::function<void(py_object,py_object)> &f_set)
+template<typename T, typename B>
+inline void extension_type<T,B>::add_property(const std::string &name, const std::string &docstring, 
+					      const std::function<py_object(py_object)> &f_get, 
+					      const std::function<void(py_object,py_object)> &f_set)
 {
     if (finalized)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_property() was called after finalize()");
@@ -327,8 +395,8 @@ inline void extension_type<T>::add_property(const std::string &name, const std::
 }
 
 
-template<typename T> template<typename R>
-inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<R(const T *)> &f)
+template<typename T, typename B> template<typename R>
+inline void extension_type<T,B>::add_property(const std::string &name, const std::string &docstring, const std::function<R(const T *)> &f)
 {
     // FIXME memory leak
     PyTypeObject *tp = this->tobj;
@@ -346,8 +414,8 @@ inline void extension_type<T>::add_property(const std::string &name, const std::
 }
 
 
-template<typename T> template<typename R>
-inline void extension_type<T>::add_property(const std::string &name, const std::string &docstring, const std::function<R& (T *)> &f)
+template<typename T, typename B> template<typename R>
+inline void extension_type<T,B>::add_property(const std::string &name, const std::string &docstring, const std::function<R& (T *)> &f)
 {
     // FIXME memory leak
     PyTypeObject *tp = this->tobj;
@@ -372,8 +440,8 @@ inline void extension_type<T>::add_property(const std::string &name, const std::
 }
 
 
-template<typename T>
-inline void extension_type<T>::finalize()
+template<typename T, typename B>
+inline void extension_type<T,B>::finalize()
 {
     if (!tobj->tp_init)
 	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_constructor() was never called");
@@ -396,8 +464,8 @@ inline void extension_type<T>::finalize()
 }
 
 
-template<typename T>
-inline T *extension_type<T>::bare_pointer_from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
+template<typename T, typename B>
+inline T *extension_type<T,B>::bare_pointer_from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
 {
     if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj))
 	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected object of type " + tobj->tp_name);
@@ -410,8 +478,8 @@ inline T *extension_type<T>::bare_pointer_from_python(PyTypeObject *tobj, const 
 }
 
 
-template<typename T>
-inline std::shared_ptr<T> extension_type<T>::shared_ptr_from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
+template<typename T, typename B>
+inline std::shared_ptr<T> extension_type<T,B>::shared_ptr_from_python(PyTypeObject *tobj, const py_object &obj, const char *where)
 {
     if (!PyObject_IsInstance(obj.ptr, (PyObject *) tobj))
 	throw std::runtime_error(std::string(where ? where : "pyclops") + ": expected object of type " + tobj->tp_name);
@@ -430,8 +498,8 @@ inline std::shared_ptr<T> extension_type<T>::shared_ptr_from_python(PyTypeObject
 }
 
 
-template<typename T>
-inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::shared_ptr<T> &x)
+template<typename T, typename B>
+inline py_object extension_type<T,B>::to_python(const std::shared_ptr<T> &x)
 {
     // FIXME: another option is to return None here, but I need to think about what's best!
     if (!x)
@@ -442,9 +510,39 @@ inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::sha
     if (obj) 
 	return py_object::borrowed_reference(obj);
 
+    // If we get here, a new python object will be created (or an exception will be thrown).
+    // First we check the derived_types.
+
+    for (const auto &d: derived_types) {
+	PyObject *p = d->_to_python(x);
+	if (p != NULL)  // dynamic_pointer_cast succeeded
+	    return py_object::new_reference(p);
+    }
+
+    return py_object::new_reference(this->_make(x));
+}
+
+
+// Returns NULL if dynamic_pointer_cast fails (throws exception on miscellaneous failure).
+// Caller has checked that 'x' is a nonempty pointer, and x.get() is not in the master_hash_table.
+template<typename T, typename B>
+inline PyObject *extension_type<T,B>::_to_python(const std::shared_ptr<B> &x)
+{
+    std::shared_ptr<T> y = std::dynamic_pointer_cast<T> (x);
+
+    if (!y)
+	return NULL;
+
+    return this->_make(y);
+}
+
+
+template<typename T, typename B>
+inline PyObject *extension_type<T,B>::_make(const std::shared_ptr<T> &x)
+{
     // Make new object.
     // FIXME I suspect this should be tp_new(), rather than tp_alloc().
-    obj = tobj->tp_alloc(tobj, 0);
+    PyObject *obj = tobj->tp_alloc(tobj, 0);
     if (!obj)
 	throw pyerr_occurred();
 
@@ -455,12 +553,12 @@ inline py_object extension_type<T>::to_python(PyTypeObject *tobj, const std::sha
     wp->p = x.get();
     wp->ref = x;
 
-    return py_object::new_reference(obj);
+    return obj;
 }
 
 
-template<typename T>
-inline void extension_type<T>::tp_dealloc(PyObject *self)
+template<typename T, typename B>
+inline void extension_type<T,B>::tp_dealloc(PyObject *self)
 {
     // FIXME it would be nice to check that 'self' is an instance of extension_type<T>,
     // before doing the cast.  This is possible but would require a new cfunction_table I think!

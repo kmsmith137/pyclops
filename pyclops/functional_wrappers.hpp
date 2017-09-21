@@ -51,6 +51,10 @@ inline std::function<py_object(py_tuple,py_dict)> wrap_func(R (*f)(Ts...), const
 template<class C, typename R, typename... Ts, typename... Us>
 inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts...), const Us & ... args);
 
+// Need separate version of wrap_method() for const-qualified member functions.
+template<class C, typename R, typename... Ts, typename... Us>
+inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts...) const, const Us & ... args);
+
 // std::function (with 'self' argument) -> python method 
 template<class C, typename R, typename... Ts, typename... Us>
 inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(std::function<R(C*,Ts...)> f, const Us & ... args);
@@ -672,6 +676,15 @@ inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts.
 	};
 
     return ret;
+}
+
+
+// Need separate version of wrap_method() for const-qualified member functions.
+template<class C, typename R, typename... Ts, typename... Us>
+inline std::function<py_object(C*, py_tuple, py_dict)> wrap_method(R (C::*f)(Ts...) const, const Us & ... args)
+{
+    using nonconst_t = R (C::*)(Ts...);
+    return wrap_method(nonconst_t(f), args...);
 }
 
 

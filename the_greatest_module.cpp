@@ -108,7 +108,7 @@ struct X {
     X(ssize_t x_) : x(x_) { cout << "    X::X(" << x << ") " << this << endl; }
     X(const X &x_) : x(x_.x) { cout << "    X::X(" << x << ") " << this << endl; }
     ~X() { cout << "    X::~X(" << x << ") " << this << endl; }
-    ssize_t get() { return x; }
+    ssize_t get() const { return x; }
 };
 
 

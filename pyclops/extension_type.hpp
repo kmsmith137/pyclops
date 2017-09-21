@@ -29,6 +29,8 @@ struct _extension_subtype {
 template<typename T, typename B=T>
 struct extension_type : _extension_subtype<B>
 {
+    static_assert(std::is_base_of<B,T>::value, "extension_type<T,B>: B must be a base class of T");
+    
     using wrapped_type = T;
     using wrapped_base = B;
 

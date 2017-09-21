@@ -238,6 +238,10 @@ static shared_ptr<Base> make_derived(ssize_t m)
     return make_shared<Derived> (m);
 }
 
+static shared_ptr<Derived> make_derived2(ssize_t m)
+{
+    return make_shared<Derived> (m);
+}
 
 static shared_ptr<Base> g_Base;
 static void set_global_Base(shared_ptr<Base> b) { g_Base = b; }
@@ -337,8 +341,10 @@ PyMODINIT_FUNC initthe_greatest_module(void)
     m.add_type(Base_type);
     m.add_type(Derived_type);
 
-    // These functions all operate on Base objects (not Derived)
+    // These functions all operate on Base objects (not Derived).
+    // Exception: make_derived2().
     m.add_function("make_derived", wrap_func(make_derived, "m"));
+    // m.add_function("make_derived2", wrap_func(make_derived2, "m"));
     m.add_function("set_global_Base", wrap_func(set_global_Base, "b"));
     m.add_function("clear_global_Base", wrap_func(clear_global_Base));
     m.add_function("f_global_Base", wrap_func(f_global_Base, "n"));

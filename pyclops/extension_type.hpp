@@ -44,7 +44,11 @@ struct extension_type : _extension_subtype<B>
     
     inline void add_constructor(std::function<T* (py_object,py_tuple,py_dict)> f);
 
+    // The 'f' argument will usually be obtained from wrap_method(), in pyclops/functional_wrappers.hpp.
     inline void add_method(const std::string &name, const std::string &docstring, std::function<py_object(T *,py_tuple,py_dict)> f);
+
+    // The 'f' argument will usually be obtained from wrap_func(), in pyclops/functional_wrappers.hpp.
+    inline void add_staticmethod(const std::string &name, const std::string &docstring, std::function<py_object(py_tuple,py_dict)> f);
 
     // General property API.
     inline void add_property(const std::string &name, const std::string &docstring, const std::function<py_object(py_object)> &f_get);
@@ -351,6 +355,22 @@ inline void extension_type<T,B>::add_method(const std::string &name, const std::
     m.ml_name = fname;
     m.ml_meth = make_kwargs_cmethod(py_method);
     m.ml_flags = METH_VARARGS | METH_KEYWORDS;
+    m.ml_doc = strdup(docstring.c_str());
+
+    this->methods->push_back(m);
+}
+
+
+template<typename T, typename B>
+inline void extension_type<T,B>::add_staticmethod(const std::string &name, const std::string &docstring, std::function<py_object(py_tuple,py_dict)> f)
+{
+    if (finalized)
+	throw std::runtime_error(std::string(tobj->tp_name) + ": extension_type::add_staticmethod() was called after finalize()");
+
+    PyMethodDef m;
+    m.ml_name = strdup(name.c_str());
+    m.ml_meth = make_kwargs_cfunction(f);
+    m.ml_flags = METH_STATIC;
     m.ml_doc = strdup(docstring.c_str());
 
     this->methods->push_back(m);

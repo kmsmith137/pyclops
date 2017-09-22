@@ -40,6 +40,7 @@ print 'Should be 24:', i
 print 'Calling get_X()'
 i = tgm.get_X(x)
 print 'Should be 24:', i
+print 'Should be (6.5, 7.5):', (x.sm(2,4.5), tgm.X.sm(2,5.5))
 print 'Deleting'
 del x
 

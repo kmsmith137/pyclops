@@ -109,6 +109,7 @@ struct X {
     X(const X &x_) : x(x_.x) { cout << "    X::X(" << x << ") " << this << endl; }
     ~X() { cout << "    X::~X(" << x << ") " << this << endl; }
     ssize_t get() const { return x; }
+    static double sm(double x, double y) { return x+y; }   // example staticmethod
 };
 
 
@@ -293,7 +294,7 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     X_type.add_constructor(wrap_constructor(X_constructor2, "i"));
     X_type.add_method("get", "get!", wrap_method(&X::get));
-    
+
     std::function<ssize_t(X*)> X_get2 = [](X *x) { return x->get(); };
     X_type.add_method("get2", "get(), wrapped via std::function", wrap_method(X_get2));
 
@@ -302,6 +303,9 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     std::function<ssize_t& (X *x)> X_xset = [](X *x) -> ssize_t & { return x->x; };
     X_type.add_property("xset", "set x!", X_xset);
+
+    // Example staticmethod.  Note wrap_func() here, not wrap_method().
+    X_type.add_staticmethod("sm", "example staticmethod", wrap_func(&X::sm, "x", "y"));
 
     m.add_type(X_type);
 

@@ -9,7 +9,7 @@ namespace pyclops {
 #endif
 
 
-static constexpr int max_kwargs_cfunctions = 20;
+static constexpr int max_kwargs_cfunctions = 30;
 static constexpr int max_kwargs_cmethods = 50;
 static constexpr int max_kwargs_initprocs = 20;
 

@@ -370,7 +370,7 @@ inline void extension_type<T,B>::add_staticmethod(const std::string &name, const
     PyMethodDef m;
     m.ml_name = strdup(name.c_str());
     m.ml_meth = make_kwargs_cfunction(f);
-    m.ml_flags = METH_STATIC;
+    m.ml_flags = METH_STATIC | METH_VARARGS | METH_KEYWORDS;
     m.ml_doc = strdup(docstring.c_str());
 
     this->methods->push_back(m);

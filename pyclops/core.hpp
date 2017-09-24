@@ -62,8 +62,8 @@ struct py_object {
     inline ssize_t get_refcount() const { return ptr->ob_refcnt; }
 
     // These are safe to call without checking is_callable().
-    py_object call(const py_tuple &args);
-    py_object call(const py_tuple &args, const py_dict &kwds);
+    py_object call(const py_tuple &args) const;
+    py_object call(const py_tuple &args, const py_dict &kwds) const;
 
     // Note: to further convert to a C++ string, wrap return value in "from_python<std::string> ()".
     py_object str() const  { return py_object::new_reference(PyObject_Str(ptr)); }
@@ -252,13 +252,13 @@ inline py_object &py_object::operator=(py_object &&x)
 }
 
 // Note: PyObject_Call() is always fastest, if args/kwds are known to be a tuple/dict.
-inline py_object py_object::call(const py_tuple &args)
+inline py_object py_object::call(const py_tuple &args) const
 {
     PyObject *p = PyObject_Call(ptr, args.ptr, NULL);
     return new_reference(p);
 }
 
-inline py_object py_object::call(const py_tuple &args, const py_dict &kwds)
+inline py_object py_object::call(const py_tuple &args, const py_dict &kwds) const
 {
     PyObject *p = PyObject_Call(ptr, args.ptr, kwds.ptr);
     return new_reference(p);

@@ -560,6 +560,12 @@ inline PyObject *extension_type<T,B>::_to_python(const std::shared_ptr<B> &x)
     if (!y)
 	return NULL;
 
+    for (const auto &d: derived_types) {
+	PyObject *p = d->_to_python(y);
+	if (p != NULL)  // dynamic_pointer_cast succeeded
+	    return p;
+    }
+
     return this->_make(y);
 }
 

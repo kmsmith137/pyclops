@@ -175,8 +175,10 @@ struct py_dict : public py_object {
 // has occurred (either because PyErr_Occurred() returned true, or (PyObject *) is NULL).
 struct pyerr_occurred : std::exception
 {
-    const char *where = nullptr;
+    std::shared_ptr<const char> msg;
+
     pyerr_occurred(const char *where=nullptr);
+
     virtual char const *what() const noexcept;
 };
 

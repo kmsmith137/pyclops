@@ -5,14 +5,14 @@
 #error "This source file needs to be compiled with -std=c++11"
 #endif
 
-#include <sstream>
-#include <iostream>
-
 #include "pyclops/core.hpp"
 #include "pyclops/py_array.hpp"
 #include "pyclops/py_list.hpp"
 #include "pyclops/py_type.hpp"
 #include "pyclops/py_weakref.hpp"
+
+#include <sstream>
+#include <iostream>
 
 #include "pyclops/converters.hpp"
 #include "pyclops/cfunction_table.hpp"

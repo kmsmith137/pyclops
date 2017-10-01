@@ -1,9 +1,9 @@
+#define NO_IMPORT_ARRAY
+#include "pyclops/core.hpp"
+
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
-
-#define NO_IMPORT_ARRAY
-#include "pyclops/core.hpp"
 
 // To enable some verbose debugging output, turn this on!
 #define PYCLOPS_MASTER_HASH_TABLE_DEBUG 0

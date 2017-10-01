@@ -1,6 +1,8 @@
+// Suggest #including pyclops first, to avoid gcc warning "_POSIX_C_SOURCE redefined"
+#include "pyclops.hpp"
+
 #include <sstream>
 #include <iostream>
-#include "pyclops.hpp"
 
 using namespace std;
 using namespace pyclops;

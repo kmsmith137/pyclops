@@ -1,14 +1,14 @@
 #ifndef _PYCLOPS_CORE_HPP
 #define _PYCLOPS_CORE_HPP
 
-#include <memory>
-#include <iostream>
-#include <stdexcept>
-
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <Python.h>
 #include <numpy/arrayobject.h>
+
+#include <memory>
+#include <iostream>
+#include <stdexcept>
 
 namespace pyclops {
 #if 0

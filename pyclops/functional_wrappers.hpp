@@ -796,7 +796,7 @@ inline std::function<C* (py_object,py_tuple,py_dict)> wrap_constructor(std::func
 	    // Convert all arguments from python.
 	    cargs_t2 cargs(*x, args, kwds, nargs);
 
-	    // Call method and to_python converter.
+	    // Call constructor and return bare pointer.
 	    return cargs.template call_constructor<C> (f);
 	};
 

@@ -321,8 +321,8 @@ inline void extension_type<T,B>::add_constructor(std::function<T* (py_object, py
 	    throw std::runtime_error(std::string(type->tp_name) + ": constructor function returned null pointer?!");
 
 	// Initialize new python-managed object.
-	new(&wp->ref) std::shared_ptr<T> ();   // "placement new"
 	master_hash_table_add(tp, self.ptr);
+	new(&wp->ref) std::shared_ptr<T> (tp);   // "placement new"
 	wp->p = tp;
     };
 

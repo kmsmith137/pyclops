@@ -12,6 +12,9 @@ static int add(int x, int y) { return x+y; }
 
 static bool boolean_not(bool x) { return !x; }
 
+static bool is_string(const py_object &x) { return x.is_string(); }
+static string echo_string(const string &s) { return s + "!"; }
+
 static string describe_array(py_array a)
 {
     stringstream ss;
@@ -277,6 +280,8 @@ PyMODINIT_FUNC initthe_greatest_module(void)
 
     m.add_function("add", wrap_func(add, "x", "y"));
     m.add_function("boolean_not", wrap_func(boolean_not, "x"));
+    m.add_function("is_string", wrap_func(is_string, "x"));
+    m.add_function("echo_string", wrap_func(echo_string, "x"));
     m.add_function("describe_array", wrap_func(describe_array, "a"));
     m.add_function("sum_array", wrap_func(sum_array, "a"));
     m.add_function("make_array", wrap_func(make_array, "dims"));

@@ -58,7 +58,7 @@ struct py_object {
     inline bool is_callable() const { return PyCallable_Check(ptr); }
     inline bool is_integer() const { return PyInt_Check(ptr); }
     inline bool is_floating_point() const { return PyFloat_Check(ptr); }
-    inline bool is_string() const { return PyString_Check(ptr); }
+    inline bool is_string() const { return PyString_Check(ptr) || PyUnicode_Check(ptr); }
     inline ssize_t get_refcount() const { return ptr->ob_refcnt; }
 
     // These are safe to call without checking is_callable().

@@ -322,7 +322,7 @@ inline void extension_type<T,B>::add_constructor(std::function<T* (py_object, py
 
 	// Initialize new python-managed object.
 	master_hash_table_add(tp, self.ptr);
-	new(&wp->ref) std::shared_ptr<T> (tp);   // "placement new"
+	new(&wp->ref) std::shared_ptr<T> ();   // "placement new"
 	wp->p = tp;
     };
 

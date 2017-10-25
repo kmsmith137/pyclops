@@ -84,7 +84,7 @@ inline py_object _vf_self(const extension_type<T,B> &type, const TT *self)
     
     if (!sp) {
 	throw std::runtime_error("pyclops::virtual_function: couldn't find object in master_hash_table"
-				 " (either a pyclops bug, or upcalling C++ object was constructed without tp_new()");
+				 " (either a pyclops bug, or upcalling C++ object was constructed without tp_new())");
     }
 
     // FIXME not sure if this call to PyObject_IsInstance() is necessary.

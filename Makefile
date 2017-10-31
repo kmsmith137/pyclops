@@ -58,7 +58,7 @@ endif
 ####################################################################################################
 
 
-all: libpyclops.so the_greatest_module.so
+all: libpyclops.so example_module.so
 
 install: libpyclops.so
 	mkdir -p $(INCDIR)/pyclops $(LIBDIR)/ $(PYDIR)/
@@ -84,5 +84,5 @@ clean:
 libpyclops.so: $(OFILES)
 	$(CPP) $(CPP_LFLAGS) -Wno-strict-aliasing -DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION -shared -o $@ $^ $(LIBS_PYMODULE)
 
-the_greatest_module.so: the_greatest_module.cpp libpyclops.so
+example_module.so: example_module.cpp libpyclops.so
 	$(CPP) $(CPP_LFLAGS) -L. -Wno-strict-aliasing -DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION -shared -o $@ $< -lpyclops $(LIBS_PYMODULE)

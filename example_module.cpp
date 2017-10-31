@@ -270,11 +270,11 @@ static string f_kwargs(int a, int b, int c=2, int d=3)
 
 
 
-PyMODINIT_FUNC initthe_greatest_module(void)
+PyMODINIT_FUNC initexample_module(void)
 {
     import_array();
 
-    extension_module m("the_greatest_module", "The greatest!");
+    extension_module m("example_module", "Example module");
 
     // ----------------------------------------------------------------------
 

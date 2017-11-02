@@ -598,13 +598,23 @@ inline void extension_type<T,B>::tp_dealloc(PyObject *self)
 
     auto *wp = reinterpret_cast<class_wrapper<T> *> (self);
 
-    if (wp->p) {
-	void *p = wp->p;
-	wp->p = nullptr;
-	master_hash_table_remove(p, self);
-	wp->ref.reset();
-	wp->ref.~shared_ptr();  // direct destructor call (counterpart of "placement new")
+    if (!wp->p)
+	return;
+
+    T *p = wp->p;
+    wp->p = nullptr;
+    master_hash_table_remove((void *)p, self);
+
+    if (!wp->ref) {
+	// Object is python-managed, i.e. allocated with new() when python object
+	// is constructed, and deallocated with delete() when python object is destroyed.
+	delete p;
+	return;
     }
+
+    // Object is C++-managed, i.e. python object holds a reference via shared_ptr<>.
+    wp->ref.reset();
+    wp->ref.~shared_ptr();  // direct destructor call (counterpart of "placement new")
 }
 
 

@@ -131,6 +131,7 @@ namespace pyclops {
 struct Base {
     const string name;
     Base(const string &name_) : name(name_) { }    
+    virtual ~Base() { }
 
     string get_name() { return name; }
 

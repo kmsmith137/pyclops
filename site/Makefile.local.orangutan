@@ -14,11 +14,15 @@ PYDIR=$(HOME)/lib/python2.7/site-packages
 PYTHON_INCDIR=/usr/include/python2.7
 
 # Hint for NUMPY_INCDIR: import numpy; numpy.get_include()
-NUMPY_INCDIR=/usr/local/lib/python2.7/dist-packages/numpy/core/include
+# On orangutan, I use two NUMPY_INCDIRs, to allow for the possibility that there may or may not be
+# a pip-installed version of numpy in $HOME/.local.
+
+NUMPY_INCDIR1=$(HOME)/.local/lib/python2.7/site-packages/numpy/core/include
+NUMPY_INCDIR2=/usr/lib/python2.7/dist-packages/numpy/core/include
 
 # C++ compiler command, including flags
 # Must support c++11
-CPP=g++ -std=c++11 -fPIC -Wall -O3 -march=native -ffast-math -funroll-loops -I. -I$(INCDIR) -I$(PYTHON_INCDIR) -I$(NUMPY_INCDIR)
+CPP=g++ -std=c++11 -fPIC -Wall -O3 -march=native -ffast-math -funroll-loops -I. -I$(INCDIR) -I$(PYTHON_INCDIR) -I$(NUMPY_INCDIR1) -I$(NUMPY_INCDIR2)
 
 # Extra linker flags when creating a shared library or exectutable from .o files
 # Don't forget to add . and $(LIBDIR) in your LD_LIBRARY_PATH environment variable (in this order)

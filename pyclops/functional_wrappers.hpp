@@ -18,6 +18,7 @@
 #include "core.hpp"
 #include "converters.hpp"
 #include <unordered_map>
+#include <functional>
 
 namespace pyclops {
 #if 0
